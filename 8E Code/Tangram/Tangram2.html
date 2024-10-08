@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+<title>Tangram</title>
+
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+#version 300 es
+
+in vec4 aPosition;
+
+uniform mat4 projection;
+uniform mat4 transformation;
+
+void main()
+{
+    gl_Position = projection*transformation*aPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+#version 300 es
+
+precision mediump float;
+
+uniform vec4 uColor;
+
+out vec4 fColor;
+
+void main()
+{
+    fColor = uColor;
+}
+</script>
+
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MVnew.js"></script>
+<script type="text/javascript" src="Tangram2.js"></script>
+</head>
+
+
+<body>
+<div>
+<canvas id="gl-canvas" width="800" height="600">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+</div>
+
+<div>
+<select id = "mymenu" size = "6">
+    <option value = "0">Rotate 1 degree</option>
+    <option value = "1">Rotate 5 degrees</option>
+    <option value = "2">Rotate 10 degrees</option>
+    <option value = "3">Rotate 30 degrees</option>
+    <option value = "4">Rotate 45 degrees</option>
+    <option value = "5">Rotate 90 degrees</option>
+</select>
+<button id = "mybutton">Reset</button>
+</div>
+</body>
+</html>
