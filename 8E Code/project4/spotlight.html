@@ -15,12 +15,13 @@ uniform mat3 uNormalMatrix;
 
 void main()
 {
-    vec3 pos = (uModelViewMatrix *aPosition).xyz;
+    vec3 pos = (uModelViewMatrix * aPosition).xyz;
 
     // check for directional light
 
-    if(uLightPosition.w == 0.0) L = normalize(uLightPosition.xyz);
+    if (uLightPosition.w == 0.0) L = (uModelViewMatrix * normalize(uLightPosition)).xyz;
     else L = normalize( uLightPosition.xyz - pos );
+    
 
     E =  -normalize(pos);
     N = normalize( uNormalMatrix*aNormal.xyz);
@@ -60,39 +61,26 @@ void main()
     fColor.a = 1.0;
 }
 </script>
-<p> </p>
-<button id = "Button0">Increase R</button>
-<button id = "Button1">Decrease R</button>
-
-<p> </p>
-<button id = "Button2">Increase theta</button>
-<button id = "Button3">Decrease theta</button>
-<button id = "Button4">Increase phi</button>
-<button id = "Button5">Decrease phi</button>
-
-<p> </p>
-<button id = "Button6">Increase Subdivisions</button>
-<button id = "Button7">Decrease Subdivisions</button>
 
 <p></p>
 <label for="lightPos">Light position</label>
-<select name="cameraPos">
-    <option>Position 1</option>
-    <option>Position 2</option>
-    <option>Position 3</option>
-    <option>Position 4</option>
-    <option>Position 5</option>
+<select name="lightPos" id="lightPos">
+    <option value="0">Position 1</option>
+    <option value="1">Position 2</option>
+    <option value="2">Position 3</option>
+    <option value="3">Position 4</option>
+    <option value="4">Position 5</option>
 </select>
 
 <p></p>
 <label for="cameraPos">Camera position</label>
-<select name="cameraPos">
-    <option>Viewpoint A</option>
-    <option>Viewpoint B</option>
-    <option>Viewpoint C</option>
-    <option>Viewpoint D</option>
-    <option>Viewpoint E</option>
-    <option>Viewpoint F</option>
+<select name="cameraPos" id="cameraPos">
+    <option value="0">Viewpoint A</option>
+    <option value="1">Viewpoint B</option>
+    <option value="2">Viewpoint C</option>
+    <option value="3">Viewpoint D</option>
+    <option value="4">Viewpoint E</option>
+    <option value="5">Viewpoint F</option>
 </select>
 
 <p></p>

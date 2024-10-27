@@ -3,40 +3,55 @@
 var canvas;
 var gl;
 
-var numTimesToSubdivide = 3;
-
 var index = 0;
 
 var positionsArray = [];
 var normalsArray = [];
 
+var cameraHeight = 5;
+var camPosA = vec3(-4, cameraHeight, -2);
+var camPosB = vec3(0, cameraHeight, -3);
+var camPosC = vec3(4, cameraHeight, -2);
+var camPosD = vec3(-4, cameraHeight, 4);
+var camPosE = vec3(0, cameraHeight, 5);
+var camPosF = vec3(4, cameraHeight, 4);
+var camPositions = [camPosA, camPosB, camPosC, camPosD, camPosE, camPosF];
 
-var near = -10;
-var far = 10;
+var lightHeight = 1;
+var lightPos1 = vec4(-2, lightHeight, 2, 0.0);
+var lightPos2 = vec4(-2, lightHeight, 0, 0.0);
+var lightPos3 = vec4(0, lightHeight, 0, 0.0);
+var lightPos4 = vec4(2, lightHeight, 0, 0.0);
+var lightPos5 = vec4(2, lightHeight, 2, 0.0);
+var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5];
+var lightTheta = 30;
+// angle measured from current light position
+// if lightDirection = vec3(1, 0, 0), then light is pointing along position X axis
+// same for if lightDirection = vec3(0, -1, 0), then light is pointing straight downwards
+var lightDirection = vec4(0, -1, 0);
+
+var near = -100;
+var far = 100;
 var radius = 1.5;
 var theta  = 0.0;
 var phi    = 0.0;
 var dr = 5.0 * Math.PI/180.0;
 
-var left = -3.0;
-var right = 3.0;
-var ytop =3.0;
-var bottom = -3.0;
+var left = -4.0;
+var right = 4.0;
+var ytop = 4.0;
+var bottom = -4.0;
 
-var va = vec4(0.0, 0.0, -1.0,1);
-var vb = vec4(0.0, 0.942809, 0.333333, 1);
-var vc = vec4(-0.816497, -0.471405, 0.333333, 1);
-var vd = vec4(0.816497, -0.471405, 0.333333,1);
-
-var lightPosition = vec4(1.0, 1.0, 1.0, 0.0);
+// var lightPosition = vec4(1.0, 1.0, 1.0, 0.0);
+var lightPosition = lightPositions[0];
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0);
 var lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 var lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 
-var materialAmbient = vec4(1.0, 0.0, 1.0, 1.0);
-var materialDiffuse = vec4(1.0, 0.8, 0.0, 1.0);
-var materialSpecular = vec4(1.0, 1.0, 1.0, 1.0);
-var materialShininess = 20.0;
+var materialAmbient = vec4(1.0, 1.0, 1.0, 1.0);
+var materialDiffuse = vec4(1.0, 0.5, 0.0, 1.0);
+var materialSpecular = vec4(0.0, 0.0, 0.0, 1.0);
+var materialShininess = 100.0;
 
 var ctm;
 var ambientColor, diffuseColor, specularColor;
@@ -46,8 +61,8 @@ var modelViewMatrixLoc, projectionMatrixLoc;
 
 var nMatrix, nMatrixLoc;
 
-var eye;
-var at = vec3(0.0, 0.0, 0.0);
+var eye = camPositions[0];
+var at = vec3(0.0, 0.0, 1.0);
 var up = vec3(0.0, 1.0, 0.0);
 
 function triangle(a, b, c) {
@@ -64,6 +79,11 @@ function triangle(a, b, c) {
 
 
      index += 3;
+}
+
+function quad(a, b, c, d) {
+    triangle(a, b, c);
+    triangle(a, c, d);
 }
 
 
@@ -120,8 +140,27 @@ window.onload = function init() {
     var diffuseProduct = mult(lightDiffuse, materialDiffuse);
     var specularProduct = mult(lightSpecular, materialSpecular);
 
+    var wallHeight = 2;
 
-    tetrahedron(va, vb, vc, vd, numTimesToSubdivide);
+    // Floor, given in top left, top right, bottom right, bottom left
+    quad(vec4(-3, 0, -1, 1), vec4(3, 0, -1, 1), vec4(1, 0, 1, 1), vec4(-1, 0, 1, 1));
+    quad(vec4(-3, 0, -1, 1), vec4(-1, 0, 1, 1), vec4(-1, 0, 3, 1), vec4(-3, 0, 3, 1));
+    quad(vec4(1, 0, 1, 1), vec4(3, 0, -1, 1), vec4(3, 0, 3, 1), vec4(1, 0, 3, 1));
+
+    // "back" wall. Walls are of height 2
+    quad(vec4(-3, 2, -1, 1), vec4(3, 2, -1, 1), vec4(3, 0, -1, 1), vec4(-3, 0, -1, 1));
+
+    // Remaining walls
+    quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
+    quad(vec4(3, wallHeight, -1, 1), vec4(3, wallHeight, 3, 1), vec4(3, 0, 3, 1), vec4(3, 0, -1, 1));
+    quad(vec4(-1, wallHeight, 3, 1), vec4(-3, wallHeight, 3, 1), vec4(-3, 0, 3, 1), vec4(-1, 0, 3, 1));
+    quad(vec4(-1, wallHeight, 1, 1), vec4(-1, wallHeight, 3, 1), vec4(-1, 0, 3, 1), vec4(-1, 0, 1, 1));
+    quad(vec4(-1, wallHeight, 1, 1), vec4(1, wallHeight, 1, 1), vec4(1, 0, 1, 1), vec4(-1, 0, 1, 1));
+    quad(vec4(1, wallHeight, 1, 1), vec4(1, wallHeight, 3, 1), vec4(1, 0, 3, 1), vec4(1, 0, 1, 1));
+    quad(vec4(1, wallHeight, 3, 1), vec4(3, wallHeight, 3, 1), vec4(3, 0, 3, 1), vec4(1, 0, 3, 1));
+
+    //triangle(topleft, topright, bottomright);
+    //tetrahedron(va, vb, vc, vd, numTimesToSubdivide);
 
     var nBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, nBuffer);
@@ -144,27 +183,19 @@ window.onload = function init() {
     projectionMatrixLoc = gl.getUniformLocation(program, "uProjectionMatrix");
     nMatrixLoc = gl.getUniformLocation(program, "uNormalMatrix");
 
-    document.getElementById("Button0").onclick = function(){radius *= 2.0;};
-    document.getElementById("Button1").onclick = function(){radius *= 0.5;};
-    document.getElementById("Button2").onclick = function(){theta += dr;};
-    document.getElementById("Button3").onclick = function(){theta -= dr;};
-    document.getElementById("Button4").onclick = function(){phi += dr;};
-    document.getElementById("Button5").onclick = function(){phi -= dr;};
+    document.getElementById("cameraPos").onchange = function () {
+        var selectedPos = parseInt(document.getElementById("cameraPos").value);
+        console.log(selectedPos);
+        eye = camPositions[selectedPos];
+        init();
+    }
 
-    document.getElementById("Button6").onclick = function(){
-        numTimesToSubdivide++;
-        index = 0;
-        positionsArray = [];
-        normalsArray = [];
+    document.getElementById("lightPos").onchange = function () {
+        var selectedPos = parseInt(document.getElementById("lightPos").value);
+        console.log(selectedPos);
+        lightPosition = lightPositions[selectedPos];
         init();
-    };
-    document.getElementById("Button7").onclick = function(){
-        if(numTimesToSubdivide) numTimesToSubdivide--;
-        index = 0;
-        positionsArray = [];
-        normalsArray = [];
-        init();
-    };
+    }
 
 
     gl.uniform4fv(gl.getUniformLocation(program,
@@ -186,9 +217,12 @@ function render() {
 
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    eye = vec3(radius*Math.sin(theta)*Math.cos(phi),
-        radius*Math.sin(theta)*Math.sin(phi), radius*Math.cos(theta));
+    // eye = vec3(radius*Math.sin(theta)*Math.cos(phi),
+    //     radius*Math.sin(theta)*Math.sin(phi), radius*Math.cos(theta));
 
+    //eye = vec3(0, 10, 0.1);
+    // eye = camPosA;
+    // eye = vec3(0, 0, 0);
     // Recall that lookAt is where the camera is theoretically placed.
     // eye is where the camera is located relative to the world
     // at is where the camera is pointing at
@@ -196,6 +230,7 @@ function render() {
     modelViewMatrix = lookAt(eye, at, up);
     // ortho is the perspective type used for this project
     projectionMatrix = ortho(left, right, bottom, ytop, near, far);
+    // projectionMatrix = perspective(1, 16/9, near, far);
 
     
     nMatrix =normalMatrix(modelViewMatrix, true );
