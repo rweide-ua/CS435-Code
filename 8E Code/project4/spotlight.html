@@ -7,24 +7,35 @@
 in vec4 aPosition;
 in vec4 aNormal;
 out vec3 N, L, E;
+out vec3 FragWorldPos;
+out vec3 light_position;
 
 uniform mat4 uModelViewMatrix;
 uniform mat4 uProjectionMatrix;
 uniform vec4 uLightPosition;
 uniform mat3 uNormalMatrix;
 
+uniform vec4 light_direction;
+uniform float light_cutoff;
+
 void main()
 {
+    // World position
     vec3 pos = (uModelViewMatrix * aPosition).xyz;
 
     // check for directional light
 
+    light_position = uLightPosition.xyz;
     if (uLightPosition.w == 0.0) L = (uModelViewMatrix * normalize(uLightPosition)).xyz;
     else L = normalize( (uModelViewMatrix * normalize(uLightPosition)).xyz - pos );
     
 
     E =  -normalize(pos);
     N = normalize( uNormalMatrix*aNormal.xyz);
+
+    FragWorldPos = vec3(aPosition);
+    
+    // spot = normalize(worldInverse * SpotlightDirection)
 
     gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
 
@@ -36,16 +47,69 @@ void main()
 
 precision mediump float;
 
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+uniform vec4 uLightPosition;
+
+in vec3 light_position;
+uniform vec4 light_direction;
+uniform float light_cutoff;
+
 uniform vec4 uAmbientProduct;
 uniform vec4 uDiffuseProduct;
 uniform vec4 uSpecularProduct;
 uniform float uShininess;
 
 in vec3 N, L, E;
+in vec3 FragWorldPos;
 out vec4 fColor;
 
 void main()
 {
+    // We need to calculate normal from fragment to light position in camera space
+    // Then we need to get the angle of this and compare to the cutoff angle
+    // If this angle is below the cutoff angle, do our lighting calculations
+    // Otherwise, don't
+
+    // L is the vector pointing to our light source
+
+    vec3 normal = normalize(N);
+
+    
+
+    // float spotlightDotProduct = dot(normalize(L), transSpotlight);
+
+    // Calculating distance from center of viewing box. Convert FragPos back to world coordinates?
+    
+    // Showing distance of fragment from 0,0,0.
+    float dist = distance(FragWorldPos, vec3(0, 0, 0)) / 5.0;
+
+    // Get angle from given fragment to light?
+    // endpoint - startpoint, so light position - frag position?
+    vec3 surfaceToLight = light_position - FragWorldPos;
+    float dotFromDirection = dot(surfaceToLight, -light_direction.xyz);
+    if (dotFromDirection >= 0.8) {
+        vec3 H = normalize( L + E );
+        vec4 ambient = uAmbientProduct;
+
+        float Kd = max( dot(L, N), 0.0 );
+        vec4  diffuse = Kd*uDiffuseProduct;
+
+        float Ks = pow( max(dot(N, H), 0.0), uShininess );
+        vec4  specular = Ks * uSpecularProduct;
+        
+        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+        fColor = ambient + diffuse +specular;
+        fColor.a = 1.0;
+    } else {
+        fColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    
+
+    // vector from world position to light position
+    // fColor = vec4(dotFromDirection, dotFromDirection, dotFromDirection, 1.0);
+
+    /*
     vec3 H = normalize( L + E );
     vec4 ambient = uAmbientProduct;
 
@@ -54,11 +118,12 @@ void main()
 
     float Ks = pow( max(dot(N, H), 0.0), uShininess );
     vec4  specular = Ks * uSpecularProduct;
-
+    
     if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
-
     fColor = ambient + diffuse +specular;
     fColor.a = 1.0;
+    */
+    
 }
 </script>
 

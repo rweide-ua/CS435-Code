@@ -24,11 +24,11 @@ var lightPos3 = vec4(0, lightHeight, 0, 1.0);
 var lightPos4 = vec4(2, lightHeight, 0, 1.0);
 var lightPos5 = vec4(2, lightHeight, 2, 1.0);
 var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5];
-var lightTheta = 30;
+var lightCutoff = 0.6;
 // angle measured from current light position
-// if lightDirection = vec3(1, 0, 0), then light is pointing along position X axis
-// same for if lightDirection = vec3(0, -1, 0), then light is pointing straight downwards
-var lightDirection = vec4(0, -1, 0);
+// if lightDirection = vec4(1, 0, 0, 1.0), then light is pointing along position X axis
+// same for if lightDirection = vec4(0, -1, 0, 1.0), then light is pointing straight downwards
+var lightDirection = vec4(0, -1, 0, 1.0);
 
 var near = -100;
 var far = 100;
@@ -214,6 +214,9 @@ window.onload = function init() {
        "uLightPosition"),flatten(lightPosition));
     gl.uniform1f(gl.getUniformLocation(program,
        "uShininess"),materialShininess);
+    gl.uniform1f(gl.getUniformLocation(program, "light_cutoff"), lightCutoff);
+    gl.uniform4fv(gl.getUniformLocation(program,
+        "light_direction"),flatten(lightDirection));
 
     render();
 }
