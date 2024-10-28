@@ -20,7 +20,7 @@ void main()
     // check for directional light
 
     if (uLightPosition.w == 0.0) L = (uModelViewMatrix * normalize(uLightPosition)).xyz;
-    else L = normalize( uLightPosition.xyz - pos );
+    else L = normalize( (uModelViewMatrix * normalize(uLightPosition)).xyz - pos );
     
 
     E =  -normalize(pos);

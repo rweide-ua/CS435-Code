@@ -18,11 +18,11 @@ var camPosF = vec3(4, cameraHeight, 4);
 var camPositions = [camPosA, camPosB, camPosC, camPosD, camPosE, camPosF];
 
 var lightHeight = 1;
-var lightPos1 = vec4(-2, lightHeight, 2, 0.0);
-var lightPos2 = vec4(-2, lightHeight, 0, 0.0);
-var lightPos3 = vec4(0, lightHeight, 0, 0.0);
-var lightPos4 = vec4(2, lightHeight, 0, 0.0);
-var lightPos5 = vec4(2, lightHeight, 2, 0.0);
+var lightPos1 = vec4(-2, lightHeight, 2, 1.0);
+var lightPos2 = vec4(-2, lightHeight, 0, 1.0);
+var lightPos3 = vec4(0, lightHeight, 0, 1.0);
+var lightPos4 = vec4(2, lightHeight, 0, 1.0);
+var lightPos5 = vec4(2, lightHeight, 2, 1.0);
 var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5];
 var lightTheta = 30;
 // angle measured from current light position
@@ -67,16 +67,19 @@ var up = vec3(0.0, 1.0, 0.0);
 
 function triangle(a, b, c) {
 
+     var t1 = subtract(b, a);
+     var t2 = subtract(c, a);
+     var normal = normalize(cross(t2, t1));
+     normal = vec4(normal[0], normal[1], normal[2], 0.0);
+
+     normalsArray.push(normal);
+     normalsArray.push(normal);
+     normalsArray.push(normal);
+
+
      positionsArray.push(a);
      positionsArray.push(b);
      positionsArray.push(c);
-
-          // normals are vectors
-
-     normalsArray.push(vec4(a[0],a[1], a[2], 0.0));
-     normalsArray.push(vec4(b[0],b[1], b[2], 0.0));
-     normalsArray.push(vec4(c[0],c[1], c[2], 0.0));
-
 
      index += 3;
 }
@@ -150,14 +153,17 @@ window.onload = function init() {
     // "back" wall. Walls are of height 2
     quad(vec4(-3, 2, -1, 1), vec4(3, 2, -1, 1), vec4(3, 0, -1, 1), vec4(-3, 0, -1, 1));
 
-    // Remaining walls
-    quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
+    // Remaining walls, in clockwise order
     quad(vec4(3, wallHeight, -1, 1), vec4(3, wallHeight, 3, 1), vec4(3, 0, 3, 1), vec4(3, 0, -1, 1));
+    quad(vec4(3, wallHeight, 3, 1), vec4(1, wallHeight, 3, 1), vec4(1, 0, 3, 1), vec4(3, 0, 3, 1));
+    quad(vec4(1, wallHeight, 3, 1), vec4(1, wallHeight, 1, 1), vec4(1, 0, 1, 1), vec4(1, 0, 3, 1));
+    quad(vec4(1, wallHeight, 1, 1), vec4(-1, wallHeight, 1, 1), vec4(-1, 0, 1, 1), vec4(1, 0, 1, 1));
+    quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
     quad(vec4(-1, wallHeight, 3, 1), vec4(-3, wallHeight, 3, 1), vec4(-3, 0, 3, 1), vec4(-1, 0, 3, 1));
     quad(vec4(-1, wallHeight, 1, 1), vec4(-1, wallHeight, 3, 1), vec4(-1, 0, 3, 1), vec4(-1, 0, 1, 1));
-    quad(vec4(-1, wallHeight, 1, 1), vec4(1, wallHeight, 1, 1), vec4(1, 0, 1, 1), vec4(-1, 0, 1, 1));
-    quad(vec4(1, wallHeight, 1, 1), vec4(1, wallHeight, 3, 1), vec4(1, 0, 3, 1), vec4(1, 0, 1, 1));
-    quad(vec4(1, wallHeight, 3, 1), vec4(3, wallHeight, 3, 1), vec4(3, 0, 3, 1), vec4(1, 0, 3, 1));
+    
+    
+    
 
     //triangle(topleft, topright, bottomright);
     //tetrahedron(va, vb, vc, vd, numTimesToSubdivide);
