@@ -42,9 +42,45 @@ void main()
 }
 </script>
 
+<!-- Investigate this for how to handle spot light: https://webglfundamentals.org/webgl/lessons/webgl-3d-lighting-spot.html -->
+
 <script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+    
+    precision mediump float;
+    
+    uniform vec4 uAmbientProduct;
+    uniform vec4 uDiffuseProduct;
+    uniform vec4 uSpecularProduct;
+    uniform float uShininess;
+    
+    in vec3 N, L, E;
+    out vec4 fColor;
+    
+    void main()
+    {
+    
+        vec3 H = normalize( L + E );
+        vec4 ambient = uAmbientProduct;
+    
+        float Kd = max( dot(L, N), 0.0 );
+        vec4  diffuse = Kd*uDiffuseProduct;
+    
+        float Ks = pow( max(dot(N, H), 0.0), uShininess );
+        vec4  specular = Ks * uSpecularProduct;
+    
+        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+    
+        fColor = ambient + diffuse +specular;
+        fColor.a = 1.0;
+    
+    }
+</script>
+
+<!-- <script id="fragment-shader" type="x-shader/x-fragment">
 #version 300 es
 
+/*
 precision mediump float;
 
 uniform mat4 uModelViewMatrix;
@@ -73,6 +109,7 @@ void main()
 
     // L is the vector pointing to our light source
 
+    /*
     vec3 normal = normalize(N);
 
     
@@ -105,11 +142,12 @@ void main()
         fColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
     
+    */
 
     // vector from world position to light position
     // fColor = vec4(dotFromDirection, dotFromDirection, dotFromDirection, 1.0);
 
-    /*
+    
     vec3 H = normalize( L + E );
     vec4 ambient = uAmbientProduct;
 
@@ -122,10 +160,10 @@ void main()
     if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
     fColor = ambient + diffuse +specular;
     fColor.a = 1.0;
-    */
     
+
 }
-</script>
+</script> -->
 
 <p></p>
 <label for="lightPos">Light position</label>
