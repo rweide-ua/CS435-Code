@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 
+<!--
 <script id="vertex-shader" type="x-shader/x-vertex">
 #version 300 es
 
@@ -41,6 +42,50 @@ void main()
 
 }
 </script>
+-->
+<script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+    
+    in vec4 aPosition;
+    in vec4 aNormal;
+    out vec3 N, L, E;
+    
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform vec4 uLightPosition;
+    uniform mat3 uNormalMatrix;
+    
+    // New additions
+    uniform vec3 u_lightWorldPosition;
+    uniform vec3 u_viewWorldPosition;
+    uniform mat4 u_worldInverseTranspose;
+    uniform mat4 u_world;
+    out vec3 v_normal;
+    out vec3 v_surfaceToLight;
+    out vec3 v_surfaceToView;
+
+    void main()
+    {
+        vec3 light;
+        vec3 pos = (uModelViewMatrix * aPosition).xyz;
+        if (uLightPosition.w == 0.0) L = (uModelViewMatrix * normalize(uLightPosition)).xyz;
+        else L = normalize( (uModelViewMatrix * normalize(uLightPosition)).xyz - pos );
+    
+        E =  -normalize(pos);
+        N = normalize(uNormalMatrix*aNormal.xyz);
+
+        // v_normal = mat3(u_world) * aNormal.xyz;
+        v_normal = mat3(u_worldInverseTranspose) * aNormal.xyz;
+        
+        vec3 surfaceWorldPosition = (u_world * aPosition).xyz;
+        v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
+
+        v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
+
+        gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
+    
+    }
+</script>
 
 <!-- Investigate this for how to handle spot light: https://webglfundamentals.org/webgl/lessons/webgl-3d-lighting-spot.html -->
 
@@ -55,11 +100,23 @@ void main()
     uniform float uShininess;
     
     in vec3 N, L, E;
+
     out vec4 fColor;
+
+    // New additions
+
+    uniform vec3 u_lightDirection;
+    uniform float u_limit;
+
+    in vec3 v_normal;
+    in vec3 v_surfaceToLight;
+    in vec3 v_surfaceToView;
     
+
     void main()
     {
-    
+        // Old code
+        /*
         vec3 H = normalize( L + E );
         vec4 ambient = uAmbientProduct;
     
@@ -70,14 +127,32 @@ void main()
         vec4  specular = Ks * uSpecularProduct;
     
         if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
-    
-        fColor = ambient + diffuse +specular;
-        fColor.a = 1.0;
+        */
+        // fColor = ambient + diffuse +specular;
+
+        // New code
+
+        vec3 normal = normalize(v_normal);
+        vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+        vec3 surfaceToViewDirection = normalize(v_surfaceToView);
+        vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
+
+        float light = dot(normal, surfaceToLightDirection);
+        float specular = 0.0;
+        if (light > 0.0) {
+            specular = pow(dot(normal, halfVector), uShininess);
+        }
+
+        fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0);
+        fColor.rgb += specular;
+        //fColor.rgb *= light;
+        //fColor.a = 1.0;
     
     }
 </script>
 
-<!-- <script id="fragment-shader" type="x-shader/x-fragment">
+<!--
+<script id="fragment-shader" type="x-shader/x-fragment">
 #version 300 es
 
 /*
@@ -163,7 +238,8 @@ void main()
     
 
 }
-</script> -->
+</script>
+-->
 
 <p></p>
 <label for="lightPos">Light position</label>
@@ -173,6 +249,8 @@ void main()
     <option value="2">Position 3</option>
     <option value="3">Position 4</option>
     <option value="4">Position 5</option>
+    <option value="5" selected>Test Pos</option>
+    <option value="6">Underneath</option>
 </select>
 
 <p></p>
@@ -184,6 +262,7 @@ void main()
     <option value="3">Viewpoint D</option>
     <option value="4">Viewpoint E</option>
     <option value="5">Viewpoint F</option>
+    <option value="6">Underneath</option>
 </select>
 
 <p></p>

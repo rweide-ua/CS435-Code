@@ -8,14 +8,15 @@ var index = 0;
 var positionsArray = [];
 var normalsArray = [];
 
-var cameraHeight = 5;
-var camPosA = vec3(-4, cameraHeight, -2);
-var camPosB = vec3(0, cameraHeight, -3);
-var camPosC = vec3(4, cameraHeight, -2);
-var camPosD = vec3(-4, cameraHeight, 4);
-var camPosE = vec3(0, cameraHeight, 5);
-var camPosF = vec3(4, cameraHeight, 4);
-var camPositions = [camPosA, camPosB, camPosC, camPosD, camPosE, camPosF];
+var cameraHeight = 8;
+var camPosA = vec3(-6, cameraHeight, -3);
+var camPosB = vec3(0, cameraHeight, -4.5);
+var camPosC = vec3(6, cameraHeight, -3);
+var camPosD = vec3(-6, cameraHeight, 6);
+var camPosE = vec3(0, cameraHeight, 7.5);
+var camPosF = vec3(6, cameraHeight, 6);
+var camPosG = vec3(6, -cameraHeight, 6);
+var camPositions = [camPosA, camPosB, camPosC, camPosD, camPosE, camPosF, camPosG];
 
 var lightHeight = 1;
 var lightPos1 = vec4(-2, lightHeight, 2, 1.0);
@@ -23,15 +24,18 @@ var lightPos2 = vec4(-2, lightHeight, 0, 1.0);
 var lightPos3 = vec4(0, lightHeight, 0, 1.0);
 var lightPos4 = vec4(2, lightHeight, 0, 1.0);
 var lightPos5 = vec4(2, lightHeight, 2, 1.0);
-var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5];
+var lightPos6 = vec4(20, 30, 50, 1.0);
+var lightPos7 = vec4(2, -lightHeight, 2, 1.0);
+var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5, lightPos6, lightPos7];
 var lightCutoff = 0.6;
 // angle measured from current light position
 // if lightDirection = vec4(1, 0, 0, 1.0), then light is pointing along position X axis
 // same for if lightDirection = vec4(0, -1, 0, 1.0), then light is pointing straight downwards
 var lightDirection = vec4(0, -1, 0, 1.0);
 
-var near = -100;
+var near = 0.001;
 var far = 100;
+var fovy = 50;
 var radius = 1.5;
 var theta  = 0.0;
 var phi    = 0.0;
@@ -43,7 +47,7 @@ var ytop = 4.0;
 var bottom = -4.0;
 
 // var lightPosition = vec4(1.0, 1.0, 1.0, 0.0);
-var lightPosition = lightPositions[0];
+var lightPosition = lightPositions[5];
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0);
 var lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 var lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
@@ -51,13 +55,22 @@ var lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 var materialAmbient = vec4(1.0, 1.0, 1.0, 1.0);
 var materialDiffuse = vec4(1.0, 0.5, 0.0, 1.0);
 var materialSpecular = vec4(0.0, 0.0, 0.0, 1.0);
-var materialShininess = 100.0;
+var materialShininess = 500.0;
 
 var ctm;
 var ambientColor, diffuseColor, specularColor;
 
 var modelViewMatrix, projectionMatrix;
 var modelViewMatrixLoc, projectionMatrixLoc;
+
+// NEW STUFF
+var worldInverseTransposeLocation;
+var worldInverseMatrix;
+var worldInverseTransposeMatrix;
+var reverseLightDirectionLocation;
+var worldLocation;
+var lightWorldPositionLocation;
+var viewWorldPositionLocation;
 
 var nMatrix, nMatrixLoc;
 
@@ -145,6 +158,7 @@ window.onload = function init() {
 
     var wallHeight = 2;
 
+    /* 
     // Floor, given in top left, top right, bottom right, bottom left
     quad(vec4(-3, 0, -1, 1), vec4(3, 0, -1, 1), vec4(1, 0, 1, 1), vec4(-1, 0, 1, 1));
     quad(vec4(-3, 0, -1, 1), vec4(-1, 0, 1, 1), vec4(-1, 0, 3, 1), vec4(-3, 0, 3, 1));
@@ -154,14 +168,33 @@ window.onload = function init() {
     quad(vec4(-3, 2, -1, 1), vec4(3, 2, -1, 1), vec4(3, 0, -1, 1), vec4(-3, 0, -1, 1));
 
     // Remaining walls, in clockwise order
+    // (swap ordering of all of these? Maybe?)
     quad(vec4(3, wallHeight, -1, 1), vec4(3, wallHeight, 3, 1), vec4(3, 0, 3, 1), vec4(3, 0, -1, 1));
     quad(vec4(3, wallHeight, 3, 1), vec4(1, wallHeight, 3, 1), vec4(1, 0, 3, 1), vec4(3, 0, 3, 1));
     quad(vec4(1, wallHeight, 3, 1), vec4(1, wallHeight, 1, 1), vec4(1, 0, 1, 1), vec4(1, 0, 3, 1));
     quad(vec4(1, wallHeight, 1, 1), vec4(-1, wallHeight, 1, 1), vec4(-1, 0, 1, 1), vec4(1, 0, 1, 1));
-    quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
-    quad(vec4(-1, wallHeight, 3, 1), vec4(-3, wallHeight, 3, 1), vec4(-3, 0, 3, 1), vec4(-1, 0, 3, 1));
     quad(vec4(-1, wallHeight, 1, 1), vec4(-1, wallHeight, 3, 1), vec4(-1, 0, 3, 1), vec4(-1, 0, 1, 1));
-    
+    quad(vec4(-1, wallHeight, 3, 1), vec4(-3, wallHeight, 3, 1), vec4(-3, 0, 3, 1), vec4(-1, 0, 3, 1));
+    quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
+    */
+
+    // Cube centered at 0, 0, 0 with width 2
+    // Front face
+    quad(vec4(-1, 1, 1, 1), vec4(1, 1, 1, 1), vec4(1, -1, 1, 1), vec4(-1, -1, 1, 1));
+    // left side
+    quad(vec4(-1, 1, -1, 1), vec4(-1, 1, 1, 1), vec4(-1, -1, 1, 1), vec4(-1, -1, -1, 1));
+    // back side
+    quad(vec4(1, 1, -1, 1), vec4(-1, 1, -1, 1), vec4(-1, -1, -1, 1), vec4(1, -1, -1, 1));
+    // right side
+    quad(vec4(1, 1, 1, 1), vec4(1, 1, -1, 1), vec4(1, -1, -1, 1), vec4(1, -1, 1, 1));
+    // top side
+    quad(vec4(-1, 1, -1, 1), vec4(1, 1, -1, 1), vec4(1, 1, 1, 1), vec4(-1, 1, 1, 1));
+    // bottom side
+    quad(vec4(-1, -1, 1, 1), vec4(1, -1, 1, 1), vec4(1, -1, -1, 1), vec4(-1, -1, -1, 1));
+
+    // Floor
+    quad(vec4(-10, -5, -10, 1), vec4(10, -5, -10, 1), vec4(10, -5, 10, 1), vec4(-10, -5, 10, 1));
+
     
     
 
@@ -191,19 +224,19 @@ window.onload = function init() {
 
     document.getElementById("cameraPos").onchange = function () {
         var selectedPos = parseInt(document.getElementById("cameraPos").value);
-        console.log(selectedPos);
+        // console.log(selectedPos);
         eye = camPositions[selectedPos];
         init();
     }
 
     document.getElementById("lightPos").onchange = function () {
         var selectedPos = parseInt(document.getElementById("lightPos").value);
-        console.log(selectedPos);
+        // console.log(selectedPos);
         lightPosition = lightPositions[selectedPos];
         init();
     }
 
-
+    
     gl.uniform4fv(gl.getUniformLocation(program,
        "uAmbientProduct"),flatten(ambientProduct));
     gl.uniform4fv(gl.getUniformLocation(program,
@@ -214,9 +247,13 @@ window.onload = function init() {
        "uLightPosition"),flatten(lightPosition));
     gl.uniform1f(gl.getUniformLocation(program,
        "uShininess"),materialShininess);
-    gl.uniform1f(gl.getUniformLocation(program, "light_cutoff"), lightCutoff);
-    gl.uniform4fv(gl.getUniformLocation(program,
-        "light_direction"),flatten(lightDirection));
+    
+    // NEW STUFF
+    worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
+    reverseLightDirectionLocation = gl.getUniformLocation(program, "u_reverseLightDirection");
+    worldLocation = gl.getUniformLocation(program, "u_world");
+    lightWorldPositionLocation = gl.getUniformLocation(program, "u_lightWorldPosition");
+    viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
 
     render();
 }
@@ -238,17 +275,32 @@ function render() {
     // up is the up direction, generally represented by the Y axis, but can be a different vector if camera rotation is changed
     modelViewMatrix = lookAt(eye, at, up);
     // ortho is the perspective type used for this project
-    projectionMatrix = ortho(left, right, bottom, ytop, near, far);
-    // projectionMatrix = perspective(1, 16/9, near, far);
+    // projectionMatrix = ortho(left, right, bottom, ytop, near, far);
+    projectionMatrix = perspective(fovy, canvas.width / canvas.height, near, far);
 
     
-    nMatrix =normalMatrix(modelViewMatrix, true );
+    nMatrix = normalMatrix(modelViewMatrix, true );
 
 
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix));
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix));
     gl.uniformMatrix3fv(nMatrixLoc, false, flatten(nMatrix) );
 
+    // NEW STUFF
+    worldInverseMatrix = inverse(modelViewMatrix);
+    worldInverseTransposeMatrix = transpose(worldInverseMatrix);
+    gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
+
+    gl.uniformMatrix4fv(worldLocation, false, flatten(modelViewMatrix));
+
+
+    var currentLightDirection = vec3(0.5, 0.7, 1);
+    currentLightDirection = vec3(lightPosition[0], lightPosition[1], lightPosition[2]);
+    //console.log(vec3(lightPosition[0], lightPosition[1], lightPosition[2]));
+    // gl.uniform3fv(reverseLightDirectionLocation, normalize(currentLightDirection));
+    gl.uniform3fv(lightWorldPositionLocation, currentLightDirection);
+    gl.uniform3fv(viewWorldPositionLocation, eye);
+    
     for( var i=0; i<index; i+=3)
         gl.drawArrays( gl.TRIANGLES, i, 3 );
 
