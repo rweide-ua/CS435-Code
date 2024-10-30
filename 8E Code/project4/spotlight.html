@@ -48,12 +48,9 @@ void main()
     
     in vec4 aPosition;
     in vec4 aNormal;
-    out vec3 N, L, E;
     
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
-    uniform vec4 uLightPosition;
-    uniform mat3 uNormalMatrix;
     
     // New additions
     uniform vec3 u_lightWorldPosition;
@@ -66,13 +63,6 @@ void main()
 
     void main()
     {
-        vec3 light;
-        vec3 pos = (uModelViewMatrix * aPosition).xyz;
-        if (uLightPosition.w == 0.0) L = (uModelViewMatrix * normalize(uLightPosition)).xyz;
-        else L = normalize( (uModelViewMatrix * normalize(uLightPosition)).xyz - pos );
-    
-        E =  -normalize(pos);
-        N = normalize(uNormalMatrix*aNormal.xyz);
 
         // v_normal = mat3(u_world) * aNormal.xyz;
         v_normal = mat3(u_worldInverseTranspose) * aNormal.xyz;
@@ -96,10 +86,7 @@ void main()
     
     uniform vec4 uAmbientProduct;
     uniform vec4 uDiffuseProduct;
-    uniform vec4 uSpecularProduct;
     uniform float uShininess;
-    
-    in vec3 N, L, E;
 
     out vec4 fColor;
 
@@ -115,40 +102,31 @@ void main()
 
     void main()
     {
-        // Old code
-        /*
-        vec3 H = normalize( L + E );
-        vec4 ambient = uAmbientProduct;
-    
-        float Kd = max( dot(L, N), 0.0 );
-        vec4  diffuse = Kd*uDiffuseProduct;
-    
-        float Ks = pow( max(dot(N, H), 0.0), uShininess );
-        vec4  specular = Ks * uSpecularProduct;
-    
-        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
-        */
-        // fColor = ambient + diffuse +specular;
-
-        // New code
 
         vec3 normal = normalize(v_normal);
         vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
         vec3 surfaceToViewDirection = normalize(v_surfaceToView);
         vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
 
-        float light = dot(normal, surfaceToLightDirection);
+        // float light = dot(normal, surfaceToLightDirection);
+        float light = 0.0;
         float specular = 0.0;
 
-        if (light > 0.0) {
-            specular = pow(dot(normal, halfVector), uShininess);
+        float dotFromDirection = dot(surfaceToLightDirection, -u_lightDirection);
+
+        if (dotFromDirection > u_limit) {
+            light = dot(normal, surfaceToLightDirection);
+            if (light > 0.0) {
+                specular = pow(dot(normal, halfVector), uShininess);
+            }
+            
+            fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0);
+            fColor.rgb += specular;
+        } else {
+            // some ambient color if out of spotlight range
+            fColor = vec4(uDiffuseProduct.x * uAmbientProduct.x, uDiffuseProduct.y * uAmbientProduct.y, uDiffuseProduct.z * uAmbientProduct.z, 1.0);
+            // fColor = uAmbientProduct;
         }
-
-
-        fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0);
-        fColor.rgb += specular;
-        //fColor.rgb *= light;
-        //fColor.a = 1.0;
     
     }
 </script>
@@ -251,8 +229,6 @@ void main()
     <option value="2">Position 3</option>
     <option value="3">Position 4</option>
     <option value="4">Position 5</option>
-    <option value="5" selected>Test Pos</option>
-    <option value="6">Underneath</option>
 </select>
 
 <p></p>
@@ -264,8 +240,30 @@ void main()
     <option value="3">Viewpoint D</option>
     <option value="4">Viewpoint E</option>
     <option value="5">Viewpoint F</option>
-    <option value="6">Underneath</option>
 </select>
+
+<p></p>
+<label for="lightDir1">Point light:</label>
+<button id="lightDir1" name="lightDir1">Down</button>
+<button id="lightDir2">Left</button>
+<button id="lightDir3">Right</button>
+<button id="lightDir4">North/Up</button>
+<button id="lightDir5">South/Down</button>
+
+<!-- <p></p>
+<label for="lightDir">Point light:</label>
+<select name="lightDir" id="lightDir">
+    <option value="0">Down</option>
+    <option value="1">Left</option>
+    <option value="2">Right</option>
+    <option value="3">North</option>
+    <option value="4">South</option>
+</select> -->
+
+<p></p>
+<label for="lightFovRange">Light field of view:</label>
+<button name="lightFovIncrease" id="lightFovIncrease">Increase</button>
+<button name="lightFovDecrease" id="lightFovDecrease">Decrease</button>
 
 <p></p>
 

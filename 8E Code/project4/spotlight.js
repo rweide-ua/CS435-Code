@@ -1,5 +1,21 @@
 "use strict";
 
+/*********
+CS 435
+Project #4
+Lilly Eide
+
+This program demonstrates rudimentary lighting with a spot light.
+The spot light can be placed in 5 distinct positions.
+The camera can be placed in 6 distinct locations.
+Using the buttons on the page, the user can point the left downwards, left, right, north and south.
+The limit (or field of view) of the light can be increased or decreased as well.
+
+This program used shadedSphere4.js from chapter 06 as a starting point, and heavily referenced the following link for how to actually set up the spot light.
+https://webglfundamentals.org/webgl/lessons/webgl-3d-lighting-point.html
+
+*********/
+
 var canvas;
 var gl;
 
@@ -8,6 +24,7 @@ var index = 0;
 var positionsArray = [];
 var normalsArray = [];
 
+// Initialize camera positions
 var cameraHeight = 8;
 var camPosA = vec3(-6, cameraHeight, -3);
 var camPosB = vec3(0, cameraHeight, -4.5);
@@ -18,46 +35,58 @@ var camPosF = vec3(6, cameraHeight, 6);
 var camPosG = vec3(6, -cameraHeight, 6);
 var camPositions = [camPosA, camPosB, camPosC, camPosD, camPosE, camPosF, camPosG];
 
+// Initialize light positions
 var lightHeight = 1;
-var lightPos1 = vec4(-2, lightHeight, 2, 1.0);
-var lightPos2 = vec4(-2, lightHeight, 0, 1.0);
-var lightPos3 = vec4(0, lightHeight, 0, 1.0);
-var lightPos4 = vec4(2, lightHeight, 0, 1.0);
-var lightPos5 = vec4(2, lightHeight, 2, 1.0);
-var lightPos6 = vec4(20, 30, 50, 1.0);
-var lightPos7 = vec4(2, -lightHeight, 2, 1.0);
+var lightPos1 = vec3(-2, lightHeight, 2);
+var lightPos2 = vec3(-2, lightHeight, 0);
+var lightPos3 = vec3(0.001, lightHeight, 0.001);
+var lightPos4 = vec3(2, lightHeight, 0);
+var lightPos5 = vec3(2, lightHeight, 2);
+var lightPos6 = vec3(20, 30, 50);
+var lightPos7 = vec3(2, -lightHeight, 2);
 var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5, lightPos6, lightPos7];
-var lightCutoff = 0.6;
-// angle measured from current light position
-// if lightDirection = vec4(1, 0, 0, 1.0), then light is pointing along position X axis
-// same for if lightDirection = vec4(0, -1, 0, 1.0), then light is pointing straight downwards
-var lightDirection = vec4(0, -1, 0, 1.0);
+var lightDirection;
+// unused
+var lightRotationX = 0.0;
+var lightRotationY = 0.0;
+// Limit is the "field of view" of the light
+var limit = radians(45);
 
+// Positions in lightLookAt array are added to current light position to determine where the light should point
+// Look downwards
+// For looking straight downwards, a small amount has to be added to X or Z, otherwise light won't look in correct direction
+var lightLookAt1 = vec3(0.001, -1.0, 0.001);
+// Look left
+var lightLookAt2 = vec3(-1.0, 0.0, 0.0);
+// Look right
+var lightLookAt3 = vec3(1.0, 0.0, 0.0);
+// Look North? Up? idk
+var lightLookAt4 = vec3(0.0, 0.0, -1.0);
+// Look South/Down
+var lightLookAt5 = vec3(0.0, 0.0, 1.0);
+var lightLookAtArr = [lightLookAt1, lightLookAt2, lightLookAt3, lightLookAt4, lightLookAt5];
+var lightLookAt = lightLookAtArr[0];
+
+// Set clipping planes and fov of camera
 var near = 0.001;
 var far = 100;
 var fovy = 50;
-var radius = 1.5;
-var theta  = 0.0;
-var phi    = 0.0;
-var dr = 5.0 * Math.PI/180.0;
-
-var left = -4.0;
-var right = 4.0;
-var ytop = 4.0;
-var bottom = -4.0;
 
 // var lightPosition = vec4(1.0, 1.0, 1.0, 0.0);
-var lightPosition = lightPositions[5];
+// lightPosition is the current light position. Initialize it to the first position
+var lightPosition = lightPositions[0];
+
+// Ambient light is a very dark gray
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0);
 var lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 var lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 
+// Environment is an orange color
 var materialAmbient = vec4(1.0, 1.0, 1.0, 1.0);
 var materialDiffuse = vec4(1.0, 0.5, 0.0, 1.0);
 var materialSpecular = vec4(0.0, 0.0, 0.0, 1.0);
 var materialShininess = 500.0;
 
-var ctm;
 var ambientColor, diffuseColor, specularColor;
 
 var modelViewMatrix, projectionMatrix;
@@ -70,10 +99,13 @@ var worldInverseTransposeMatrix;
 var worldLocation;
 var lightWorldPositionLocation;
 var viewWorldPositionLocation;
+var lightDirectionLocation;
+var limitLocation;
 
 var nMatrix, nMatrixLoc;
 
 var eye = camPositions[0];
+// Look at center of room
 var at = vec3(0.0, 0.0, 1.0);
 var up = vec3(0.0, 1.0, 0.0);
 
@@ -99,36 +131,6 @@ function triangle(a, b, c) {
 function quad(a, b, c, d) {
     triangle(a, b, c);
     triangle(a, c, d);
-}
-
-
-function divideTriangle(a, b, c, count) {
-    if (count > 0) {
-
-        var ab = mix( a, b, 0.5);
-        var ac = mix( a, c, 0.5);
-        var bc = mix( b, c, 0.5);
-
-        ab = normalize(ab, true);
-        ac = normalize(ac, true);
-        bc = normalize(bc, true);
-
-        divideTriangle(a, ab, ac, count - 1);
-        divideTriangle(ab, b, bc, count - 1);
-        divideTriangle(bc, c, ac, count - 1);
-        divideTriangle(ab, bc, ac, count - 1);
-    }
-    else {
-        triangle(a, b, c);
-    }
-}
-
-
-function tetrahedron(a, b, c, d, n) {
-    divideTriangle(a, b, c, n);
-    divideTriangle(d, c, b, n);
-    divideTriangle(a, d, b, n);
-    divideTriangle(a, c, d, n);
 }
 
 function cube(center, scale) {
@@ -172,7 +174,7 @@ window.onload = function init() {
 
     var wallHeight = 2;
 
-    /* 
+    
     // Floor, given in top left, top right, bottom right, bottom left
     quad(vec4(-3, 0, -1, 1), vec4(3, 0, -1, 1), vec4(1, 0, 1, 1), vec4(-1, 0, 1, 1));
     quad(vec4(-3, 0, -1, 1), vec4(-1, 0, 1, 1), vec4(-1, 0, 3, 1), vec4(-3, 0, 3, 1));
@@ -190,10 +192,10 @@ window.onload = function init() {
     quad(vec4(-1, wallHeight, 1, 1), vec4(-1, wallHeight, 3, 1), vec4(-1, 0, 3, 1), vec4(-1, 0, 1, 1));
     quad(vec4(-1, wallHeight, 3, 1), vec4(-3, wallHeight, 3, 1), vec4(-3, 0, 3, 1), vec4(-1, 0, 3, 1));
     quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
-    */
+    
 
     // Cube centered at 0, 0, 0 with width 2
-    cube(vec3(0, 0, 0), vec3(1, 1, 1));
+    // cube(vec3(0, 0, 0), vec3(1, 1, 1));
     
     // cube(vec3(lightPosition[0], lightPosition[1], lightPosition[2]), vec3(0.1, 0.1, 0.1));
     
@@ -211,13 +213,8 @@ window.onload = function init() {
     // quad(vec4(-1, -1, 1, 1), vec4(1, -1, 1, 1), vec4(1, -1, -1, 1), vec4(-1, -1, -1, 1));
 
     // Floor
-    quad(vec4(-10, -5, -10, 1), vec4(10, -5, -10, 1), vec4(10, -5, 10, 1), vec4(-10, -5, 10, 1));
-
-    
-    
-
-    //triangle(topleft, topright, bottomright);
-    //tetrahedron(va, vb, vc, vd, numTimesToSubdivide);
+    // var floorHeight = -3;
+    // quad(vec4(-10, floorHeight, -10, 1), vec4(10, floorHeight, -10, 1), vec4(10, floorHeight, 10, 1), vec4(-10, floorHeight, 10, 1));
 
     var nBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, nBuffer);
@@ -244,15 +241,50 @@ window.onload = function init() {
         var selectedPos = parseInt(document.getElementById("cameraPos").value);
         // console.log(selectedPos);
         eye = camPositions[selectedPos];
-        init();
     }
 
     document.getElementById("lightPos").onchange = function () {
         var selectedPos = parseInt(document.getElementById("lightPos").value);
         // console.log(selectedPos);
         lightPosition = lightPositions[selectedPos];
-        init();
     }
+
+    document.getElementById("lightFovIncrease").onclick = function () {
+        // increase by 5 degrees
+        limit += radians(5);
+        if (limit > radians(90)) {
+            limit = radians(90);
+        }
+    }
+
+    document.getElementById("lightFovDecrease").onclick = function () {
+        // increase by 5 degrees
+        limit -= radians(10);
+        if (limit <= radians(0)) {
+            limit = radians(0);
+        }
+    }
+
+    document.getElementById("lightDir1").onclick = function () {
+        lightLookAt = lightLookAtArr[0];
+    }
+
+    document.getElementById("lightDir2").onclick = function () {
+        lightLookAt = lightLookAtArr[1];
+    }
+
+    document.getElementById("lightDir3").onclick = function () {
+        lightLookAt = lightLookAtArr[2];
+    }
+
+    document.getElementById("lightDir4").onclick = function () {
+        lightLookAt = lightLookAtArr[3];
+    }
+
+    document.getElementById("lightDir5").onclick = function () {
+        lightLookAt = lightLookAtArr[4];
+    }
+
 
     
     gl.uniform4fv(gl.getUniformLocation(program,
@@ -261,8 +293,6 @@ window.onload = function init() {
        "uDiffuseProduct"),flatten(diffuseProduct));
     gl.uniform4fv(gl.getUniformLocation(program,
        "uSpecularProduct"),flatten(specularProduct));
-    gl.uniform4fv(gl.getUniformLocation(program,
-       "uLightPosition"),flatten(lightPosition));
     gl.uniform1f(gl.getUniformLocation(program,
        "uShininess"),materialShininess);
     
@@ -271,33 +301,26 @@ window.onload = function init() {
     worldLocation = gl.getUniformLocation(program, "u_world");
     lightWorldPositionLocation = gl.getUniformLocation(program, "u_lightWorldPosition");
     viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
+    lightDirectionLocation = gl.getUniformLocation(program, "u_lightDirection");
+    limitLocation = gl.getUniformLocation(program, "u_limit");
 
     render();
 }
 
 
 function render() {
-
+    
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // eye = vec3(radius*Math.sin(theta)*Math.cos(phi),
-    //     radius*Math.sin(theta)*Math.sin(phi), radius*Math.cos(theta));
-
-    //eye = vec3(0, 10, 0.1);
-    // eye = camPosA;
-    // eye = vec3(0, 0, 0);
     // Recall that lookAt is where the camera is theoretically placed.
     // eye is where the camera is located relative to the world
     // at is where the camera is pointing at
     // up is the up direction, generally represented by the Y axis, but can be a different vector if camera rotation is changed
-    modelViewMatrix = lookAt(eye, at, up);
-    // ortho is the perspective type used for this project
-    // projectionMatrix = ortho(left, right, bottom, ytop, near, far);
-    projectionMatrix = perspective(fovy, canvas.width / canvas.height, near, far);
 
+    modelViewMatrix = lookAt(eye, at, up);
+    projectionMatrix = perspective(fovy, canvas.width / canvas.height, near, far);
     
     nMatrix = normalMatrix(modelViewMatrix, true );
-
 
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix));
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix));
@@ -311,18 +334,24 @@ function render() {
     worldInverseTransposeMatrix = transpose(worldInverseMatrix);
     gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
 
-    //console.log(rotate(0, vec3(1.0, 0.0, 0.0)));
-    gl.uniformMatrix4fv(worldLocation, false, flatten(rotateY(0)));
+    gl.uniformMatrix4fv(worldLocation, false, flatten(worldMatrix));
 
+    // lightRotationX += 0.3;
+    // lightRotationY += 0.3;
 
-    // var currentLightPosition = vec3(0.5, 0.7, 1);
+    // determines the position in world space that the light should point at
+    var lightLookAtPosition = add(lightPosition, lightLookAt);
+    var lmat = lookAt(lightPosition, lightLookAtPosition, up);
+    lmat = mult(rotateX(lightRotationX), lmat); // Rotate by given light rotation
+    lmat = mult(rotateY(lightRotationY), lmat);
+    lmat = flatten(lmat);
+    // Get desired vector from lookAt matrix
+    lightDirection = vec3(-lmat[2], -lmat[6], -lmat[10]);
 
-    // get first three components of light position
-    var currentLightPosition = lightPosition.slice(0, 3);
-
-    //console.log(vec3(lightPosition[0], lightPosition[1], lightPosition[2]));
+    gl.uniform3fv(lightDirectionLocation, lightDirection);
+    gl.uniform1f(limitLocation, Math.cos(limit));
     
-    gl.uniform3fv(lightWorldPositionLocation, currentLightPosition);
+    gl.uniform3fv(lightWorldPositionLocation, lightPosition);
     gl.uniform3fv(viewWorldPositionLocation, eye);
     
     for( var i=0; i<index; i+=3)
