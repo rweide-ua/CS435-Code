@@ -229,7 +229,19 @@ void main()
 <button id="nextFrameButton">Next Frame</button>
 
 <p></p>
+<label for="frameRateSelector">Frame rate:</label>
+<select name="frameRateSelector" id="frameRateSelector">
+    <option value="12" selected>12 fps</option>
+    <option value="24">24 fps</option>
+    <option value="30">30 fps</option>
+    <option value="60">60 fps</option>
+</select>
 
+<p></p>
+
+<img id="texImage" src="tv_sequence/frame0001.png">
+
+<p></p>
 <script type="text/javascript" src="../Common/initShaders.js"></script>
 <script type="text/javascript" src="../Common/MVnew.js"></script>
 <script type="text/javascript" src="texmap.js"></script>

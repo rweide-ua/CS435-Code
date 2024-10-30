@@ -27,7 +27,7 @@ var normalsArray = [];
 var isTVOn = false;
 var isPlaying = true;
 var currentFrame = 0;
-var numberOfFrames = 12;
+var numberOfFrames = 75;
 var frameRate = 12;
 var millisecondsBetweenFrames = 1000 / frameRate;
 var lastRecordedTime;
@@ -110,6 +110,8 @@ var viewWorldPositionLocation;
 var lightDirectionLocation;
 var limitLocation;
 
+var tvImageElement;
+
 var nMatrix, nMatrixLoc;
 
 var eye = camPositions[0];
@@ -119,21 +121,21 @@ var up = vec3(0.0, 1.0, 0.0);
 
 function triangle(a, b, c) {
 
-     var t1 = subtract(b, a);
-     var t2 = subtract(c, a);
-     var normal = normalize(cross(t2, t1));
-     normal = vec4(normal[0], normal[1], normal[2], 0.0);
+    var t1 = subtract(b, a);
+    var t2 = subtract(c, a);
+    var normal = normalize(cross(t2, t1));
+    normal = vec4(normal[0], normal[1], normal[2], 0.0);
 
-     normalsArray.push(normal);
-     normalsArray.push(normal);
-     normalsArray.push(normal);
+    normalsArray.push(normal);
+    normalsArray.push(normal);
+    normalsArray.push(normal);
 
 
-     positionsArray.push(a);
-     positionsArray.push(b);
-     positionsArray.push(c);
+    positionsArray.push(a);
+    positionsArray.push(b);
+    positionsArray.push(c);
 
-     index += 3;
+    index += 3;
 }
 
 function quad(a, b, c, d) {
@@ -269,6 +271,7 @@ window.onload = function init() {
         if (currentFrame > numberOfFrames - 1) {
             currentFrame = 0;
         }
+        tvImageElement.src = "tv_sequence/frame00" + (currentFrame + 1).toString().padStart(2, '0') + ".png";
     }
 
     document.getElementById("prevFrameButton").onclick = function () {
@@ -276,13 +279,15 @@ window.onload = function init() {
         if (currentFrame < 0) {
             currentFrame = numberOfFrames - 1;
         }
+        tvImageElement.src = "tv_sequence/frame00" + (currentFrame + 1).toString().padStart(2, '0') + ".png";
     }
 
-    // document.getElementById("cameraPos").onchange = function () {
-    //     var selectedPos = parseInt(document.getElementById("cameraPos").value);
-    //     // console.log(selectedPos);
-    //     eye = camPositions[selectedPos];
-    // }
+    document.getElementById("frameRateSelector").onchange = function () {
+        var selectedFPS = parseInt(document.getElementById("frameRateSelector").value);
+        console.log("FPS: " + selectedFPS);
+        frameRate = selectedFPS;
+        millisecondsBetweenFrames = 1000 / frameRate;
+    }
 
     // document.getElementById("lightPos").onchange = function () {
     //     var selectedPos = parseInt(document.getElementById("lightPos").value);
@@ -345,6 +350,8 @@ window.onload = function init() {
     lightDirectionLocation = gl.getUniformLocation(program, "u_lightDirection");
     limitLocation = gl.getUniformLocation(program, "u_limit");
 
+    tvImageElement = document.getElementById("texImage");
+
     render();
 }
 
@@ -357,17 +364,24 @@ function render() {
     // Essentially, if the corrent amount of time has elapsed to display a new frame, we change the current frame index
     if (timeElapsedSinceLastFrame > millisecondsBetweenFrames) {
         // Change texture here
+        //console.log("file name: " + "tv_sequence/frame00" + currentFrame.toString().padStart(2, '0'));
+        //document.getElementById("texImage").src = "tv_sequence/frame00" + currentFrame.toString().padStart(2, '0');
+
         lastRecordedTime = currentTime;
         if (isPlaying) {
             currentFrame += 1;
+            // Frames are zero indexed, so we have to subtract from numberOfFrames by 1
+            if (currentFrame > numberOfFrames - 1) {
+                currentFrame = 0;
+            }
+            //console.log("file name: " + "tv_sequence/frame00" + currentFrame.toString().padStart(2, '0'));
+            tvImageElement.src = "tv_sequence/frame00" + (currentFrame + 1).toString().padStart(2, '0') + ".png";
         }
-        // Frames are zero indexed, so we have to subtract from numberOfFrames by 1
-        if (currentFrame > numberOfFrames - 1) {
-            currentFrame = 0;
-        }
+        
+        
     }
 
-    console.log("Current frame: " + currentFrame);
+    // console.log("Current frame: " + currentFrame);
 
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
