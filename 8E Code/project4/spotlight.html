@@ -139,9 +139,11 @@ void main()
 
         float light = dot(normal, surfaceToLightDirection);
         float specular = 0.0;
+
         if (light > 0.0) {
             specular = pow(dot(normal, halfVector), uShininess);
         }
+
 
         fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0);
         fColor.rgb += specular;

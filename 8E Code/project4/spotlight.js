@@ -67,7 +67,6 @@ var modelViewMatrixLoc, projectionMatrixLoc;
 var worldInverseTransposeLocation;
 var worldInverseMatrix;
 var worldInverseTransposeMatrix;
-var reverseLightDirectionLocation;
 var worldLocation;
 var lightWorldPositionLocation;
 var viewWorldPositionLocation;
@@ -132,6 +131,21 @@ function tetrahedron(a, b, c, d, n) {
     divideTriangle(a, c, d, n);
 }
 
+function cube(center, scale) {
+    // Front face
+    quad(vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1));
+    // left side
+    quad(vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], -1 * scale[2] + center[2], 1));
+    // back side
+    quad(vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], -1 * scale[2] + center[2], 1));
+    // right side
+    quad(vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1));
+    // top side
+    quad(vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1));
+    // bottom side
+    quad(vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], -1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], -1 * scale[2] + center[2], 1));
+}
+
 window.onload = function init() {
 
     canvas = document.getElementById("gl-canvas");
@@ -179,18 +193,22 @@ window.onload = function init() {
     */
 
     // Cube centered at 0, 0, 0 with width 2
+    cube(vec3(0, 0, 0), vec3(1, 1, 1));
+    
+    // cube(vec3(lightPosition[0], lightPosition[1], lightPosition[2]), vec3(0.1, 0.1, 0.1));
+    
     // Front face
-    quad(vec4(-1, 1, 1, 1), vec4(1, 1, 1, 1), vec4(1, -1, 1, 1), vec4(-1, -1, 1, 1));
-    // left side
-    quad(vec4(-1, 1, -1, 1), vec4(-1, 1, 1, 1), vec4(-1, -1, 1, 1), vec4(-1, -1, -1, 1));
-    // back side
-    quad(vec4(1, 1, -1, 1), vec4(-1, 1, -1, 1), vec4(-1, -1, -1, 1), vec4(1, -1, -1, 1));
-    // right side
-    quad(vec4(1, 1, 1, 1), vec4(1, 1, -1, 1), vec4(1, -1, -1, 1), vec4(1, -1, 1, 1));
-    // top side
-    quad(vec4(-1, 1, -1, 1), vec4(1, 1, -1, 1), vec4(1, 1, 1, 1), vec4(-1, 1, 1, 1));
-    // bottom side
-    quad(vec4(-1, -1, 1, 1), vec4(1, -1, 1, 1), vec4(1, -1, -1, 1), vec4(-1, -1, -1, 1));
+    // quad(vec4(-1, 1, 1, 1), vec4(1, 1, 1, 1), vec4(1, -1, 1, 1), vec4(-1, -1, 1, 1));
+    // // left side
+    // quad(vec4(-1, 1, -1, 1), vec4(-1, 1, 1, 1), vec4(-1, -1, 1, 1), vec4(-1, -1, -1, 1));
+    // // back side
+    // quad(vec4(1, 1, -1, 1), vec4(-1, 1, -1, 1), vec4(-1, -1, -1, 1), vec4(1, -1, -1, 1));
+    // // right side
+    // quad(vec4(1, 1, 1, 1), vec4(1, 1, -1, 1), vec4(1, -1, -1, 1), vec4(1, -1, 1, 1));
+    // // top side
+    // quad(vec4(-1, 1, -1, 1), vec4(1, 1, -1, 1), vec4(1, 1, 1, 1), vec4(-1, 1, 1, 1));
+    // // bottom side
+    // quad(vec4(-1, -1, 1, 1), vec4(1, -1, 1, 1), vec4(1, -1, -1, 1), vec4(-1, -1, -1, 1));
 
     // Floor
     quad(vec4(-10, -5, -10, 1), vec4(10, -5, -10, 1), vec4(10, -5, 10, 1), vec4(-10, -5, 10, 1));
@@ -250,7 +268,6 @@ window.onload = function init() {
     
     // NEW STUFF
     worldInverseTransposeLocation = gl.getUniformLocation(program, "u_worldInverseTranspose");
-    reverseLightDirectionLocation = gl.getUniformLocation(program, "u_reverseLightDirection");
     worldLocation = gl.getUniformLocation(program, "u_world");
     lightWorldPositionLocation = gl.getUniformLocation(program, "u_lightWorldPosition");
     viewWorldPositionLocation = gl.getUniformLocation(program, "u_viewWorldPosition");
@@ -287,18 +304,25 @@ function render() {
     gl.uniformMatrix3fv(nMatrixLoc, false, flatten(nMatrix) );
 
     // NEW STUFF
-    worldInverseMatrix = inverse(modelViewMatrix);
+
+    var worldMatrix = rotateY(0);
+
+    worldInverseMatrix = inverse(worldMatrix);
     worldInverseTransposeMatrix = transpose(worldInverseMatrix);
     gl.uniformMatrix4fv(worldInverseTransposeLocation, false, flatten(worldInverseTransposeMatrix));
 
-    gl.uniformMatrix4fv(worldLocation, false, flatten(modelViewMatrix));
+    //console.log(rotate(0, vec3(1.0, 0.0, 0.0)));
+    gl.uniformMatrix4fv(worldLocation, false, flatten(rotateY(0)));
 
 
-    var currentLightDirection = vec3(0.5, 0.7, 1);
-    currentLightDirection = vec3(lightPosition[0], lightPosition[1], lightPosition[2]);
+    // var currentLightPosition = vec3(0.5, 0.7, 1);
+
+    // get first three components of light position
+    var currentLightPosition = lightPosition.slice(0, 3);
+
     //console.log(vec3(lightPosition[0], lightPosition[1], lightPosition[2]));
-    // gl.uniform3fv(reverseLightDirectionLocation, normalize(currentLightDirection));
-    gl.uniform3fv(lightWorldPositionLocation, currentLightDirection);
+    
+    gl.uniform3fv(lightWorldPositionLocation, currentLightPosition);
     gl.uniform3fv(viewWorldPositionLocation, eye);
     
     for( var i=0; i<index; i+=3)
