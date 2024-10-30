@@ -24,6 +24,14 @@ var index = 0;
 var positionsArray = [];
 var normalsArray = [];
 
+var isTVOn = false;
+var isPlaying = true;
+var currentFrame = 0;
+var numberOfFrames = 12;
+var frameRate = 12;
+var millisecondsBetweenFrames = 1000 / frameRate;
+var lastRecordedTime;
+
 // Initialize camera positions
 var cameraHeight = 8;
 var camPosA = vec3(-6, cameraHeight, -3);
@@ -150,6 +158,7 @@ function cube(center, scale) {
 
 window.onload = function init() {
 
+    lastRecordedTime = new Date().getTime();
     canvas = document.getElementById("gl-canvas");
 
     gl = canvas.getContext('webgl2');
@@ -237,53 +246,71 @@ window.onload = function init() {
     projectionMatrixLoc = gl.getUniformLocation(program, "uProjectionMatrix");
     nMatrixLoc = gl.getUniformLocation(program, "uNormalMatrix");
 
-    document.getElementById("cameraPos").onchange = function () {
-        var selectedPos = parseInt(document.getElementById("cameraPos").value);
-        // console.log(selectedPos);
-        eye = camPositions[selectedPos];
-    }
-
-    document.getElementById("lightPos").onchange = function () {
-        var selectedPos = parseInt(document.getElementById("lightPos").value);
-        // console.log(selectedPos);
-        lightPosition = lightPositions[selectedPos];
-    }
-
-    document.getElementById("lightFovIncrease").onclick = function () {
-        // increase by 5 degrees
-        limit += radians(5);
-        if (limit > radians(90)) {
-            limit = radians(90);
+    document.getElementById("tvOnOffButton").onclick = function () {
+        isTVOn = !isTVOn;
+        if (isTVOn) {
+            document.getElementById("tvOnOffButton").innerText = "Turn TV Off";
+        } else {
+            document.getElementById("tvOnOffButton").innerText = "Turn TV On";
         }
     }
 
-    document.getElementById("lightFovDecrease").onclick = function () {
-        // increase by 5 degrees
-        limit -= radians(5);
-        if (limit <= radians(0)) {
-            limit = radians(0);
+    document.getElementById("pausePlayButton").onclick = function () {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+            document.getElementById("pausePlayButton").innerText = "Pause";
+        } else {
+            document.getElementById("pausePlayButton").innerText = "Play";
         }
     }
 
-    document.getElementById("lightDir1").onclick = function () {
-        lightLookAt = lightLookAtArr[0];
-    }
+    // document.getElementById("cameraPos").onchange = function () {
+    //     var selectedPos = parseInt(document.getElementById("cameraPos").value);
+    //     // console.log(selectedPos);
+    //     eye = camPositions[selectedPos];
+    // }
 
-    document.getElementById("lightDir2").onclick = function () {
-        lightLookAt = lightLookAtArr[1];
-    }
+    // document.getElementById("lightPos").onchange = function () {
+    //     var selectedPos = parseInt(document.getElementById("lightPos").value);
+    //     // console.log(selectedPos);
+    //     lightPosition = lightPositions[selectedPos];
+    // }
 
-    document.getElementById("lightDir3").onclick = function () {
-        lightLookAt = lightLookAtArr[2];
-    }
+    // document.getElementById("lightFovIncrease").onclick = function () {
+    //     // increase by 5 degrees
+    //     limit += radians(5);
+    //     if (limit > radians(90)) {
+    //         limit = radians(90);
+    //     }
+    // }
 
-    document.getElementById("lightDir4").onclick = function () {
-        lightLookAt = lightLookAtArr[3];
-    }
+    // document.getElementById("lightFovDecrease").onclick = function () {
+    //     // increase by 5 degrees
+    //     limit -= radians(5);
+    //     if (limit <= radians(0)) {
+    //         limit = radians(0);
+    //     }
+    // }
 
-    document.getElementById("lightDir5").onclick = function () {
-        lightLookAt = lightLookAtArr[4];
-    }
+    // document.getElementById("lightDir1").onclick = function () {
+    //     lightLookAt = lightLookAtArr[0];
+    // }
+
+    // document.getElementById("lightDir2").onclick = function () {
+    //     lightLookAt = lightLookAtArr[1];
+    // }
+
+    // document.getElementById("lightDir3").onclick = function () {
+    //     lightLookAt = lightLookAtArr[2];
+    // }
+
+    // document.getElementById("lightDir4").onclick = function () {
+    //     lightLookAt = lightLookAtArr[3];
+    // }
+
+    // document.getElementById("lightDir5").onclick = function () {
+    //     lightLookAt = lightLookAtArr[4];
+    // }
 
 
     
@@ -310,6 +337,22 @@ window.onload = function init() {
 
 function render() {
     
+    // Frame delta system inspired by Unity's deltaTime system
+    var currentTime = new Date().getTime();
+    var timeElapsedSinceLastFrame = currentTime - lastRecordedTime;
+    // Essentially, if the corrent amount of time has elapsed to display a new frame, we change the current frame index
+    if (timeElapsedSinceLastFrame > millisecondsBetweenFrames) {
+        // Change texture here
+        lastRecordedTime = currentTime;
+        currentFrame += 1;
+        // Frames are zero indexed, so we have to subtract from numberOfFrames by 1
+        if (currentFrame > numberOfFrames - 1) {
+            currentFrame = 0;
+        }
+    }
+
+    // console.log("Current frame: " + currentFrame);
+
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Recall that lookAt is where the camera is theoretically placed.
