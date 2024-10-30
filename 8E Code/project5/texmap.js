@@ -264,6 +264,20 @@ window.onload = function init() {
         }
     }
 
+    document.getElementById("nextFrameButton").onclick = function () {
+        currentFrame += 1;
+        if (currentFrame > numberOfFrames - 1) {
+            currentFrame = 0;
+        }
+    }
+
+    document.getElementById("prevFrameButton").onclick = function () {
+        currentFrame -= 1;
+        if (currentFrame < 0) {
+            currentFrame = numberOfFrames - 1;
+        }
+    }
+
     // document.getElementById("cameraPos").onchange = function () {
     //     var selectedPos = parseInt(document.getElementById("cameraPos").value);
     //     // console.log(selectedPos);
@@ -344,14 +358,16 @@ function render() {
     if (timeElapsedSinceLastFrame > millisecondsBetweenFrames) {
         // Change texture here
         lastRecordedTime = currentTime;
-        currentFrame += 1;
+        if (isPlaying) {
+            currentFrame += 1;
+        }
         // Frames are zero indexed, so we have to subtract from numberOfFrames by 1
         if (currentFrame > numberOfFrames - 1) {
             currentFrame = 0;
         }
     }
 
-    // console.log("Current frame: " + currentFrame);
+    console.log("Current frame: " + currentFrame);
 
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
