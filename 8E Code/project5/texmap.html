@@ -1,53 +1,12 @@
 <!DOCTYPE html>
 <html>
 
-<!--
-<script id="vertex-shader" type="x-shader/x-vertex">
-#version 300 es
-
-in vec4 aPosition;
-in vec4 aNormal;
-out vec3 N, L, E;
-out vec3 FragWorldPos;
-out vec3 light_position;
-
-uniform mat4 uModelViewMatrix;
-uniform mat4 uProjectionMatrix;
-uniform vec4 uLightPosition;
-uniform mat3 uNormalMatrix;
-
-uniform vec4 light_direction;
-uniform float light_cutoff;
-
-void main()
-{
-    // World position
-    vec3 pos = (uModelViewMatrix * aPosition).xyz;
-
-    // check for directional light
-
-    light_position = uLightPosition.xyz;
-    if (uLightPosition.w == 0.0) L = (uModelViewMatrix * normalize(uLightPosition)).xyz;
-    else L = normalize( (uModelViewMatrix * normalize(uLightPosition)).xyz - pos );
-    
-
-    E =  -normalize(pos);
-    N = normalize( uNormalMatrix*aNormal.xyz);
-
-    FragWorldPos = vec3(aPosition);
-    
-    // spot = normalize(worldInverse * SpotlightDirection)
-
-    gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
-
-}
-</script>
--->
 <script id="vertex-shader" type="x-shader/x-vertex">
     #version 300 es
     
     in vec4 aPosition;
     in vec4 aNormal;
+    in vec2 aTexCoord;
     
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
@@ -61,6 +20,8 @@ void main()
     out vec3 v_surfaceToLight;
     out vec3 v_surfaceToView;
 
+    out vec2 vTexCoord;
+
     void main()
     {
 
@@ -73,11 +34,11 @@ void main()
         v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
 
         gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
-    
+        
+        vTexCoord = aTexCoord;
+
     }
 </script>
-
-<!-- Investigate this for how to handle spot light: https://webglfundamentals.org/webgl/lessons/webgl-3d-lighting-spot.html -->
 
 <script id="fragment-shader" type="x-shader/x-fragment">
     #version 300 es
@@ -98,6 +59,10 @@ void main()
     in vec3 v_normal;
     in vec3 v_surfaceToLight;
     in vec3 v_surfaceToView;
+
+    in vec4 vColor;
+    in vec2 vTexCoord;
+    uniform sampler2D uTextureMap;
     
 
     void main()
@@ -117,109 +82,34 @@ void main()
         if (dotFromDirection > u_limit) {
             light = dot(normal, surfaceToLightDirection);
             if (light > 0.0) {
-                specular = pow(dot(normal, halfVector), uShininess);
+                specular = pow(dot(normal, halfVector), uShininess) / 8.0;
             }
             
-            fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0);
+            fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0) * texture(uTextureMap, vTexCoord);
             fColor.rgb += specular;
         } else {
             // some ambient color if out of spotlight range
-            fColor = vec4(uDiffuseProduct.x * uAmbientProduct.x, uDiffuseProduct.y * uAmbientProduct.y, uDiffuseProduct.z * uAmbientProduct.z, 1.0);
+            fColor = vec4(uDiffuseProduct.x * uAmbientProduct.x, uDiffuseProduct.y * uAmbientProduct.y, uDiffuseProduct.z * uAmbientProduct.z, 1.0) * texture(uTextureMap, vTexCoord);
             // fColor = uAmbientProduct;
         }
     
     }
 </script>
 
-<!--
-<script id="fragment-shader" type="x-shader/x-fragment">
-#version 300 es
-
-/*
-precision mediump float;
-
-uniform mat4 uModelViewMatrix;
-uniform mat4 uProjectionMatrix;
-uniform vec4 uLightPosition;
-
-in vec3 light_position;
-uniform vec4 light_direction;
-uniform float light_cutoff;
-
-uniform vec4 uAmbientProduct;
-uniform vec4 uDiffuseProduct;
-uniform vec4 uSpecularProduct;
-uniform float uShininess;
-
-in vec3 N, L, E;
-in vec3 FragWorldPos;
-out vec4 fColor;
-
-void main()
-{
-    // We need to calculate normal from fragment to light position in camera space
-    // Then we need to get the angle of this and compare to the cutoff angle
-    // If this angle is below the cutoff angle, do our lighting calculations
-    // Otherwise, don't
-
-    // L is the vector pointing to our light source
-
-    /*
-    vec3 normal = normalize(N);
-
-    
-
-    // float spotlightDotProduct = dot(normalize(L), transSpotlight);
-
-    // Calculating distance from center of viewing box. Convert FragPos back to world coordinates?
-    
-    // Showing distance of fragment from 0,0,0.
-    float dist = distance(FragWorldPos, vec3(0, 0, 0)) / 5.0;
-
-    // Get angle from given fragment to light?
-    // endpoint - startpoint, so light position - frag position?
-    vec3 surfaceToLight = light_position - FragWorldPos;
-    float dotFromDirection = dot(surfaceToLight, -light_direction.xyz);
-    if (dotFromDirection >= 0.8) {
-        vec3 H = normalize( L + E );
-        vec4 ambient = uAmbientProduct;
-
-        float Kd = max( dot(L, N), 0.0 );
-        vec4  diffuse = Kd*uDiffuseProduct;
-
-        float Ks = pow( max(dot(N, H), 0.0), uShininess );
-        vec4  specular = Ks * uSpecularProduct;
-        
-        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
-        fColor = ambient + diffuse +specular;
-        fColor.a = 1.0;
-    } else {
-        fColor = vec4(0.0, 0.0, 0.0, 1.0);
+<div id="animationFramesDiv" hidden></div>
+</div>
+<!-- Force load images before main script is called -->
+<script>
+    var numberOfFrames = 75;
+    var framesDiv = document.getElementById("animationFramesDiv");
+    var framesElementsHTML = "";
+    for (var i = 1; i <= numberOfFrames; i++) {
+        var frameFilePath = "tv_sequence/frame00" + i.toString().padStart(2, '0') + ".png";
+        // console.log("Frame to load: " + frameFilePath);
+        framesElementsHTML += "<img src=\"" + frameFilePath + "\" id=\"frame" + i.toString().padStart(2, '0') + "\" hidden> ";
     }
-    
-    */
-
-    // vector from world position to light position
-    // fColor = vec4(dotFromDirection, dotFromDirection, dotFromDirection, 1.0);
-
-    
-    vec3 H = normalize( L + E );
-    vec4 ambient = uAmbientProduct;
-
-    float Kd = max( dot(L, N), 0.0 );
-    vec4  diffuse = Kd*uDiffuseProduct;
-
-    float Ks = pow( max(dot(N, H), 0.0), uShininess );
-    vec4  specular = Ks * uSpecularProduct;
-    
-    if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
-    fColor = ambient + diffuse +specular;
-    fColor.a = 1.0;
-    
-
-}
+    framesDiv.innerHTML = framesElementsHTML;
 </script>
--->
 
 <p></p>
 <label for="tvOnOffButton">TV Controls:</label>
@@ -231,15 +121,19 @@ void main()
 <p></p>
 <label for="frameRateSelector">Frame rate:</label>
 <select name="frameRateSelector" id="frameRateSelector">
-    <option value="12" selected>12 fps</option>
+    <option value="12">12 fps</option>
     <option value="24">24 fps</option>
     <option value="30">30 fps</option>
-    <option value="60">60 fps</option>
+    <option value="60" selected>60 fps</option>
 </select>
 
 <p></p>
 
-<img id="texImage" src="tv_sequence/frame0001.png">
+<img id="texWood" src="textures/wood.png" hidden>
+<img id="texBrick" src="textures/bricks.png" hidden>
+<img id="texCarpet" src="textures/carpet.png" hidden>
+<img id="texBlack" src="textures/black.png" hidden>
+
 
 <p></p>
 <script type="text/javascript" src="../Common/initShaders.js"></script>

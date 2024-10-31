@@ -2,17 +2,17 @@
 
 /*********
 CS 435
-Project #4
+Project #5
 Lilly Eide
 
-This program demonstrates rudimentary lighting with a spot light.
-The spot light can be placed in 5 distinct positions.
-The camera can be placed in 6 distinct locations.
-Using the buttons on the page, the user can point the left downwards, left, right, north and south.
-The limit (or field of view) of the light can be increased or decreased as well.
+This program explores texture mapping and texture animation.
+The scene shown shows a room consisting of a floor, three walls, a table, and a television
+By clicking "Turn TV On", the TV will show a short image sequence.
+The image sequence can be paused and played, as well as advanced to the next or previous frame
+As a bonus, the frame rate of the image sequence can be adjusted too, using the drop down on the page.
 
-This program used shadedSphere4.js from chapter 06 as a starting point, and heavily referenced the following link for how to actually set up the spot light.
-https://webglfundamentals.org/webgl/lessons/webgl-3d-lighting-point.html
+This program used Project #4 as a starting point, and as such, includes the basic spot lighting as seen in that project.
+Shaders were adjusted based on example from textureCube1, and multiple texture loading was taken from the in-class example.
 
 *********/
 
@@ -28,70 +28,44 @@ var isTVOn = false;
 var isPlaying = true;
 var currentFrame = 0;
 var numberOfFrames = 75;
-var frameRate = 12;
+var frameRate = 60;
 var millisecondsBetweenFrames = 1000 / frameRate;
 var lastRecordedTime;
 
-// Initialize camera positions
-var cameraHeight = 8;
-var camPosA = vec3(-6, cameraHeight, -3);
-var camPosB = vec3(0, cameraHeight, -4.5);
-var camPosC = vec3(6, cameraHeight, -3);
-var camPosD = vec3(-6, cameraHeight, 6);
-var camPosE = vec3(0, cameraHeight, 7.5);
-var camPosF = vec3(6, cameraHeight, 6);
-var camPosG = vec3(6, -cameraHeight, 6);
-var camPositions = [camPosA, camPosB, camPosC, camPosD, camPosE, camPosF, camPosG];
-
-// Initialize light positions
-var lightHeight = 1;
-var lightPos1 = vec3(-2, lightHeight, 2);
-var lightPos2 = vec3(-2, lightHeight, 0);
-var lightPos3 = vec3(0.001, lightHeight, 0.001);
-var lightPos4 = vec3(2, lightHeight, 0);
-var lightPos5 = vec3(2, lightHeight, 2);
-var lightPos6 = vec3(20, 30, 50);
-var lightPos7 = vec3(2, -lightHeight, 2);
-var lightPositions = [lightPos1, lightPos2, lightPos3, lightPos4, lightPos5, lightPos6, lightPos7];
 var lightDirection;
 // unused
 var lightRotationX = 0.0;
 var lightRotationY = 0.0;
 // Limit is the "field of view" of the light
-var limit = radians(45);
+var limit = radians(80);
 
-// Positions in lightLookAt array are added to current light position to determine where the light should point
-// Look downwards
-// For looking straight downwards, a small amount has to be added to X or Z, otherwise light won't look in correct direction
-var lightLookAt1 = vec3(0.001, -1.0, 0.001);
-// Look left
-var lightLookAt2 = vec3(-1.0, 0.0, 0.0);
-// Look right
-var lightLookAt3 = vec3(1.0, 0.0, 0.0);
-// Look North? Up? idk
-var lightLookAt4 = vec3(0.0, 0.0, -1.0);
-// Look South/Down
-var lightLookAt5 = vec3(0.0, 0.0, 1.0);
-var lightLookAtArr = [lightLookAt1, lightLookAt2, lightLookAt3, lightLookAt4, lightLookAt5];
-var lightLookAt = lightLookAtArr[0];
+// Determines where the light should point
+var lightLookAt = vec3(0, 0, 0);
 
 // Set clipping planes and fov of camera
 var near = 0.001;
 var far = 100;
 var fovy = 50;
 
-// var lightPosition = vec4(1.0, 1.0, 1.0, 0.0);
-// lightPosition is the current light position. Initialize it to the first position
-var lightPosition = lightPositions[0];
+var texCoordsArray = [];
+var texCoord = [
+    vec2(0, 0),
+    vec2(0, 1),
+    vec2(1, 1),
+    vec2(1, 0)
+];
+
+// lightPosition is the current light position.
+var lightPosition = vec3(0, 13, 9);
 
 // Ambient light is a very dark gray
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0);
 var lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 var lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 
-// Environment is an orange color
+
 var materialAmbient = vec4(1.0, 1.0, 1.0, 1.0);
-var materialDiffuse = vec4(1.0, 0.5, 0.0, 1.0);
+var materialDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 var materialSpecular = vec4(0.0, 0.0, 0.0, 1.0);
 var materialShininess = 500.0;
 
@@ -100,7 +74,6 @@ var ambientColor, diffuseColor, specularColor;
 var modelViewMatrix, projectionMatrix;
 var modelViewMatrixLoc, projectionMatrixLoc;
 
-// NEW STUFF
 var worldInverseTransposeLocation;
 var worldInverseMatrix;
 var worldInverseTransposeMatrix;
@@ -110,14 +83,19 @@ var viewWorldPositionLocation;
 var lightDirectionLocation;
 var limitLocation;
 
-var tvImageElement;
+var animationFrames = [];
+var texture1;
+var woodTexture;
+var carpetTexture;
+var brickTexture;
+var blackTexture;
 
 var nMatrix, nMatrixLoc;
 
-var eye = camPositions[0];
+var eye = vec3(0, 8, 17);
 // Look at center of room
-var at = vec3(0.0, 0.0, 1.0);
-var up = vec3(0.0, 1.0, 0.0);
+var at = vec3(0.0, 5.0, 0.0);
+var up = normalize(vec3(0.0, 1.0, 0.0));
 
 function triangle(a, b, c) {
 
@@ -138,11 +116,34 @@ function triangle(a, b, c) {
     index += 3;
 }
 
-function quad(a, b, c, d) {
-    triangle(a, b, c);
-    triangle(a, c, d);
+function configureTexture( image ) {
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB,
+         gl.RGB, gl.UNSIGNED_BYTE, image);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER,
+                      gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    return texture;
 }
 
+// Quad, expecting vec4s in order of top left, top right, bottom right, bottom left
+function quad(a, b, c, d) {
+    triangle(a, b, c);
+    texCoordsArray.push(texCoord[0]);
+    texCoordsArray.push(texCoord[3]);
+    texCoordsArray.push(texCoord[2]);
+    
+    triangle(a, c, d);
+    texCoordsArray.push(texCoord[0]);
+    texCoordsArray.push(texCoord[2]);
+    texCoordsArray.push(texCoord[1]);
+}
+
+// Creates a cube centered at center, scaled on x, y and z by scale
+// center and scale are vec3s
 function cube(center, scale) {
     // Front face
     quad(vec4(-1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], 1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1), vec4(-1 * scale[0] + center[0], -1 * scale[1] + center[1], 1 * scale[2] + center[2], 1));
@@ -178,54 +179,41 @@ window.onload = function init() {
     var program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
-
     var ambientProduct = mult(lightAmbient, materialAmbient);
     var diffuseProduct = mult(lightDiffuse, materialDiffuse);
     var specularProduct = mult(lightSpecular, materialSpecular);
 
-    var wallHeight = 2;
 
-    
-    // Floor, given in top left, top right, bottom right, bottom left
-    quad(vec4(-3, 0, -1, 1), vec4(3, 0, -1, 1), vec4(1, 0, 1, 1), vec4(-1, 0, 1, 1));
-    quad(vec4(-3, 0, -1, 1), vec4(-1, 0, 1, 1), vec4(-1, 0, 3, 1), vec4(-3, 0, 3, 1));
-    quad(vec4(1, 0, 1, 1), vec4(3, 0, -1, 1), vec4(3, 0, 3, 1), vec4(1, 0, 3, 1));
-
-    // "back" wall. Walls are of height 2
-    quad(vec4(-3, 2, -1, 1), vec4(3, 2, -1, 1), vec4(3, 0, -1, 1), vec4(-3, 0, -1, 1));
-
-    // Remaining walls, in clockwise order
-    // (swap ordering of all of these? Maybe?)
-    quad(vec4(3, wallHeight, -1, 1), vec4(3, wallHeight, 3, 1), vec4(3, 0, 3, 1), vec4(3, 0, -1, 1));
-    quad(vec4(3, wallHeight, 3, 1), vec4(1, wallHeight, 3, 1), vec4(1, 0, 3, 1), vec4(3, 0, 3, 1));
-    quad(vec4(1, wallHeight, 3, 1), vec4(1, wallHeight, 1, 1), vec4(1, 0, 1, 1), vec4(1, 0, 3, 1));
-    quad(vec4(1, wallHeight, 1, 1), vec4(-1, wallHeight, 1, 1), vec4(-1, 0, 1, 1), vec4(1, 0, 1, 1));
-    quad(vec4(-1, wallHeight, 1, 1), vec4(-1, wallHeight, 3, 1), vec4(-1, 0, 3, 1), vec4(-1, 0, 1, 1));
-    quad(vec4(-1, wallHeight, 3, 1), vec4(-3, wallHeight, 3, 1), vec4(-3, 0, 3, 1), vec4(-1, 0, 3, 1));
-    quad(vec4(-3, wallHeight, 3, 1), vec4(-3, wallHeight, -1, 1), vec4(-3, 0, -1, 1), vec4(-3, 0, 3, 1));
-    
-
-    // Cube centered at 0, 0, 0 with width 2
-    // cube(vec3(0, 0, 0), vec3(1, 1, 1));
-    
-    // cube(vec3(lightPosition[0], lightPosition[1], lightPosition[2]), vec3(0.1, 0.1, 0.1));
-    
-    // Front face
-    // quad(vec4(-1, 1, 1, 1), vec4(1, 1, 1, 1), vec4(1, -1, 1, 1), vec4(-1, -1, 1, 1));
-    // // left side
-    // quad(vec4(-1, 1, -1, 1), vec4(-1, 1, 1, 1), vec4(-1, -1, 1, 1), vec4(-1, -1, -1, 1));
-    // // back side
-    // quad(vec4(1, 1, -1, 1), vec4(-1, 1, -1, 1), vec4(-1, -1, -1, 1), vec4(1, -1, -1, 1));
-    // // right side
-    // quad(vec4(1, 1, 1, 1), vec4(1, 1, -1, 1), vec4(1, -1, -1, 1), vec4(1, -1, 1, 1));
-    // // top side
-    // quad(vec4(-1, 1, -1, 1), vec4(1, 1, -1, 1), vec4(1, 1, 1, 1), vec4(-1, 1, 1, 1));
-    // // bottom side
-    // quad(vec4(-1, -1, 1, 1), vec4(1, -1, 1, 1), vec4(1, -1, -1, 1), vec4(-1, -1, -1, 1));
-
+    // ***** Room Definition *****
     // Floor
-    // var floorHeight = -3;
-    // quad(vec4(-10, floorHeight, -10, 1), vec4(10, floorHeight, -10, 1), vec4(10, floorHeight, 10, 1), vec4(-10, floorHeight, 10, 1));
+    var floorHeight = 0;
+    var floorWidth = 5;
+    var floorLength = 5;
+    // Given as top left, top right, bottom right, bottom left
+    quad(vec4(-floorWidth, floorHeight, -floorLength, 1), vec4(floorWidth, floorHeight, -floorLength, 1), vec4(floorWidth, floorHeight, floorLength, 1), vec4(-floorWidth, floorHeight, floorLength, 1));
+
+    // Walls
+    var wallHeight = 5;
+    var wallWidth = 5;
+    quad(vec4(-wallWidth, 2 * wallHeight, wallWidth, 1), vec4(-wallWidth, 2 * wallHeight, -wallWidth, 1), vec4(-wallWidth, 0, -wallWidth, 1), vec4(-wallWidth, 0, wallWidth, 1));
+    quad(vec4(-wallWidth, 2 * wallHeight, -wallWidth, 1), vec4(wallWidth, 2 * wallHeight, -wallWidth, 1), vec4(wallWidth, 0, -wallWidth, 1), vec4(-wallWidth, 0, -wallWidth, 1));
+    quad(vec4(wallWidth, 2 * wallHeight, -wallWidth, 1), vec4(wallWidth, 2 * wallHeight, wallWidth, 1), vec4(wallWidth, 0, wallWidth, 1), vec4(wallWidth, 0, -wallWidth, 1));
+
+    // Table
+    // Each cube contains 6 quads, keep this in mind
+    // 5 cubes, so 30 quads
+    cube(vec3(0, 3, 0), vec3(3, 0.2, 2));
+    cube(vec3(-2.8, 1.4, 1.8), vec3(0.2, 1.4, 0.2));
+    cube(vec3(2.8, 1.4, 1.8), vec3(0.2, 1.4, 0.2));
+    cube(vec3(2.8, 1.4, -1.8), vec3(0.2, 1.4, 0.2));
+    cube(vec3(-2.8, 1.4, -1.8), vec3(0.2, 1.4, 0.2));
+
+    // TV (just a cube)
+    cube(vec3(0, 4.6, 0), vec3(2, 1.5, 1));
+
+    // TV screen
+    quad(vec4(-1.8, 5.9, 1.1, 1), vec4(1.8, 5.9, 1.1, 1), vec4(1.8, 3.5, 1.1, 1), vec4(-1.8, 3.5, 1.1, 1));
+
 
     var nBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, nBuffer);
@@ -243,6 +231,14 @@ window.onload = function init() {
     var positionLoc = gl.getAttribLocation( program, "aPosition");
     gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionLoc);
+
+    var tBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW);
+
+    var texCoordLoc = gl.getAttribLocation(program, "aTexCoord");
+    gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(texCoordLoc);
 
     modelViewMatrixLoc = gl.getUniformLocation(program, "uModelViewMatrix");
     projectionMatrixLoc = gl.getUniformLocation(program, "uProjectionMatrix");
@@ -271,7 +267,6 @@ window.onload = function init() {
         if (currentFrame > numberOfFrames - 1) {
             currentFrame = 0;
         }
-        tvImageElement.src = "tv_sequence/frame00" + (currentFrame + 1).toString().padStart(2, '0') + ".png";
     }
 
     document.getElementById("prevFrameButton").onclick = function () {
@@ -279,59 +274,14 @@ window.onload = function init() {
         if (currentFrame < 0) {
             currentFrame = numberOfFrames - 1;
         }
-        tvImageElement.src = "tv_sequence/frame00" + (currentFrame + 1).toString().padStart(2, '0') + ".png";
     }
 
     document.getElementById("frameRateSelector").onchange = function () {
         var selectedFPS = parseInt(document.getElementById("frameRateSelector").value);
-        console.log("FPS: " + selectedFPS);
+        // console.log("FPS: " + selectedFPS);
         frameRate = selectedFPS;
         millisecondsBetweenFrames = 1000 / frameRate;
     }
-
-    // document.getElementById("lightPos").onchange = function () {
-    //     var selectedPos = parseInt(document.getElementById("lightPos").value);
-    //     // console.log(selectedPos);
-    //     lightPosition = lightPositions[selectedPos];
-    // }
-
-    // document.getElementById("lightFovIncrease").onclick = function () {
-    //     // increase by 5 degrees
-    //     limit += radians(5);
-    //     if (limit > radians(90)) {
-    //         limit = radians(90);
-    //     }
-    // }
-
-    // document.getElementById("lightFovDecrease").onclick = function () {
-    //     // increase by 5 degrees
-    //     limit -= radians(5);
-    //     if (limit <= radians(0)) {
-    //         limit = radians(0);
-    //     }
-    // }
-
-    // document.getElementById("lightDir1").onclick = function () {
-    //     lightLookAt = lightLookAtArr[0];
-    // }
-
-    // document.getElementById("lightDir2").onclick = function () {
-    //     lightLookAt = lightLookAtArr[1];
-    // }
-
-    // document.getElementById("lightDir3").onclick = function () {
-    //     lightLookAt = lightLookAtArr[2];
-    // }
-
-    // document.getElementById("lightDir4").onclick = function () {
-    //     lightLookAt = lightLookAtArr[3];
-    // }
-
-    // document.getElementById("lightDir5").onclick = function () {
-    //     lightLookAt = lightLookAtArr[4];
-    // }
-
-
     
     gl.uniform4fv(gl.getUniformLocation(program,
        "uAmbientProduct"),flatten(ambientProduct));
@@ -350,7 +300,25 @@ window.onload = function init() {
     lightDirectionLocation = gl.getUniformLocation(program, "u_lightDirection");
     limitLocation = gl.getUniformLocation(program, "u_limit");
 
-    tvImageElement = document.getElementById("texImage");
+    // Initialize animation frames array based on frames from image sequence
+    for (var i = 1; i <= numberOfFrames; i++) {
+        var animImageID = "frame" + i.toString().padStart(2, '0');
+        var frameTexture = document.getElementById(animImageID);
+        animationFrames.push(configureTexture(frameTexture));
+    }
+
+    var img1 = document.getElementById("texWood");
+    texture1 = configureTexture(img1);
+    var img2 = document.getElementById("texWood");
+    woodTexture = configureTexture(img2);
+    var img3 = document.getElementById("texBrick");
+    brickTexture = configureTexture(img3);
+    var img4 = document.getElementById("texCarpet");
+    carpetTexture = configureTexture(img4);
+    var img5 = document.getElementById("texBlack");
+    blackTexture = configureTexture(img5);
+
+    gl.uniform1i(gl.getUniformLocation(program, "uTextureMap"), 0);
 
     render();
 }
@@ -363,10 +331,6 @@ function render() {
     var timeElapsedSinceLastFrame = currentTime - lastRecordedTime;
     // Essentially, if the corrent amount of time has elapsed to display a new frame, we change the current frame index
     if (timeElapsedSinceLastFrame > millisecondsBetweenFrames) {
-        // Change texture here
-        //console.log("file name: " + "tv_sequence/frame00" + currentFrame.toString().padStart(2, '0'));
-        //document.getElementById("texImage").src = "tv_sequence/frame00" + currentFrame.toString().padStart(2, '0');
-
         lastRecordedTime = currentTime;
         if (isPlaying) {
             currentFrame += 1;
@@ -374,14 +338,8 @@ function render() {
             if (currentFrame > numberOfFrames - 1) {
                 currentFrame = 0;
             }
-            //console.log("file name: " + "tv_sequence/frame00" + currentFrame.toString().padStart(2, '0'));
-            tvImageElement.src = "tv_sequence/frame00" + (currentFrame + 1).toString().padStart(2, '0') + ".png";
         }
-        
-        
     }
-
-    // console.log("Current frame: " + currentFrame);
 
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -399,8 +357,6 @@ function render() {
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix));
     gl.uniformMatrix3fv(nMatrixLoc, false, flatten(nMatrix) );
 
-    // NEW STUFF
-
     var worldMatrix = rotateY(0);
 
     worldInverseMatrix = inverse(worldMatrix);
@@ -413,7 +369,7 @@ function render() {
     // lightRotationY += 0.3;
 
     // determines the position in world space that the light should point at
-    var lightLookAtPosition = add(lightPosition, lightLookAt);
+    var lightLookAtPosition = lightLookAt;
     var lmat = lookAt(lightPosition, lightLookAtPosition, up);
     lmat = mult(rotateX(lightRotationX), lmat); // Rotate by given light rotation
     lmat = mult(rotateY(lightRotationY), lmat);
@@ -427,8 +383,46 @@ function render() {
     gl.uniform3fv(lightWorldPositionLocation, lightPosition);
     gl.uniform3fv(viewWorldPositionLocation, eye);
     
-    for( var i=0; i<index; i+=3)
-        gl.drawArrays( gl.TRIANGLES, i, 3 );
+    // gl.bindTexture(gl.TEXTURE_2D, animationFrames[currentFrame]);
+
+    // Order of quads:
+    // Quad 1: floor
+    // Quads 2, 3, and 4: walls
+    // Quads 5 - 34: table
+    // Quads 35 - 40: TV
+    // Last quad: TV screen
+
+    // go through index on a quad-by-quad basis
+    for (var i = 0; i < index; i += 6) {
+        var currentQuad = i / 6;
+        // Determine what texture to use based on what quad is currently being handled
+        switch (true) {
+            case (currentQuad <= 0): // First quad, floor
+                gl.bindTexture(gl.TEXTURE_2D, carpetTexture);
+                break;
+            case (currentQuad <= 3): // Second, third and fourth quads
+                gl.bindTexture(gl.TEXTURE_2D, brickTexture);
+                break;
+            case (currentQuad <= 33): // Quads 5 - 34: table
+                gl.bindTexture(gl.TEXTURE_2D, woodTexture);
+                break;
+            case (currentQuad <= 39): // TV shell
+                gl.bindTexture(gl.TEXTURE_2D, blackTexture);
+                break;
+            case (currentQuad <= 40): // TV screen
+                if (isTVOn) {
+                    gl.bindTexture(gl.TEXTURE_2D, animationFrames[currentFrame]);
+                } else {
+                    gl.bindTexture(gl.TEXTURE_2D, blackTexture);
+                }
+                break;
+            default: // default to brick texture
+                gl.bindTexture(gl.TEXTURE_2D, woodTexture);
+                break;
+        }
+
+        gl.drawArrays( gl.TRIANGLES, i, 6 );
+    }
 
     requestAnimationFrame(render);
 }
