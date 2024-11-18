@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+    
+    in vec4 aPosition;
+    in vec4 aNormal;
+    in vec2 aTexCoord;
+    
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    
+    // New additions
+    uniform vec3 u_lightWorldPosition;
+    uniform vec3 u_viewWorldPosition;
+    uniform mat4 u_worldInverseTranspose;
+    uniform mat4 u_world;
+    out vec3 v_normal;
+    out vec3 v_surfaceToLight;
+    out vec3 v_surfaceToView;
+
+    out vec2 vTexCoord;
+
+    void main()
+    {
+
+        // v_normal = mat3(u_world) * aNormal.xyz;
+        v_normal = mat3(u_worldInverseTranspose) * aNormal.xyz;
+        
+        vec3 surfaceWorldPosition = (u_world * aPosition).xyz;
+        v_surfaceToLight = u_lightWorldPosition - surfaceWorldPosition;
+
+        v_surfaceToView = u_viewWorldPosition - surfaceWorldPosition;
+
+        gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
+        
+        vTexCoord = aTexCoord;
+
+    }
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+    
+    precision mediump float;
+    
+    uniform vec4 uAmbientProduct;
+    uniform vec4 uDiffuseProduct;
+    uniform float uShininess;
+
+    out vec4 fColor;
+
+    // New additions
+
+    uniform vec3 u_lightDirection;
+    uniform float u_limit;
+
+    in vec3 v_normal;
+    in vec3 v_surfaceToLight;
+    in vec3 v_surfaceToView;
+
+    in vec4 vColor;
+    in vec2 vTexCoord;
+    uniform sampler2D uTextureMap;
+    
+
+    void main()
+    {
+
+        vec3 normal = normalize(v_normal);
+        vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
+        vec3 surfaceToViewDirection = normalize(v_surfaceToView);
+        vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
+
+        // float light = dot(normal, surfaceToLightDirection);
+        float light = 0.0;
+        float specular = 0.0;
+
+        float dotFromDirection = dot(surfaceToLightDirection, -u_lightDirection);
+
+        if (dotFromDirection > u_limit) {
+            light = dot(normal, surfaceToLightDirection);
+            if (light > 0.0) {
+                specular = pow(dot(normal, halfVector), uShininess) / 8.0;
+            }
+            
+            fColor = vec4(uDiffuseProduct.x * light, uDiffuseProduct.y * light, uDiffuseProduct.z * light, 1.0) * texture(uTextureMap, vTexCoord);
+            fColor.rgb += specular;
+        } else {
+            // some ambient color if out of spotlight range
+            fColor = vec4(uDiffuseProduct.x * uAmbientProduct.x, uDiffuseProduct.y * uAmbientProduct.y, uDiffuseProduct.z * uAmbientProduct.z, 1.0) * texture(uTextureMap, vTexCoord);
+            // fColor = uAmbientProduct;
+        }
+    
+    }
+</script>
+
+<div id="animationFramesDiv" hidden></div>
+</div>
+<!-- Force load images before main script is called -->
+<script>
+    var numberOfFrames = 75;
+    var framesDiv = document.getElementById("animationFramesDiv");
+    var framesElementsHTML = "";
+    for (var i = 1; i <= numberOfFrames; i++) {
+        var frameFilePath = "tv_sequence/frame00" + i.toString().padStart(2, '0') + ".png";
+        // console.log("Frame to load: " + frameFilePath);
+        framesElementsHTML += "<img src=\"" + frameFilePath + "\" id=\"frame" + i.toString().padStart(2, '0') + "\" hidden> ";
+    }
+    framesDiv.innerHTML = framesElementsHTML;
+</script>
+
+<p></p>
+<label for="tvOnOffButton">TV Controls:</label>
+<button id="tvOnOffButton" name="tvOnOffButton">Turn TV On</button>
+<button id="pausePlayButton">Pause</button>
+<button id="prevFrameButton">Previous Frame</button>
+<button id="nextFrameButton">Next Frame</button>
+<button id="toggleBallButton">Remove Ball</button>
+
+<p></p>
+<label for="frameRateSelector">Frame rate:</label>
+<select name="frameRateSelector" id="frameRateSelector">
+    <option value="12">12 fps</option>
+    <option value="24">24 fps</option>
+    <option value="30">30 fps</option>
+    <option value="60" selected>60 fps</option>
+</select>
+
+<p></p>
+
+<img id="texWood" src="textures/wood.png" hidden>
+<img id="texBrick" src="textures/bricks.png" hidden>
+<img id="texCarpet" src="textures/carpet.png" hidden>
+<img id="texBlack" src="textures/black.png" hidden>
+<img id="texBlue" src="textures/blue.png" hidden>
+<img id="texCup" src="textures/cup.png" hidden>
+<img id="texTransparent" src="textures/transparent.png" hidden>
+
+
+<p></p>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MVnew.js"></script>
+<script type="text/javascript" src="blending.js"></script>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+</body>
+</html>
