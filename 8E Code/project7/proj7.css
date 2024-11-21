@@ -1,0 +1,35 @@
+.layer_preview {
+    background-image: url("checker.png");
+}
+
+.row {
+    display: flex;     
+    flex-direction: row;;
+}
+
+.column {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.layers {
+    height: 600px;
+    overflow-y: auto;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.layer {
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.selected_layer {
+    background-color: #b3ffad;
+}
+
+.fill-horizontal > * { 
+    flex: 1;
+}

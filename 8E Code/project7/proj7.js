@@ -19,7 +19,6 @@ var transformation; // projection matrix uniform shader variable location
 var vPosition; // loc of attribute variables
 var vColor;
 
-var canvasPixels = [];
 var Layers = [];
 
 var tBlockSize = 25;
@@ -37,6 +36,7 @@ var transparencyLocation;
 var activeLayerIndex = 0;
 
 var backgroundColor;
+var backgroundOpacity = 1.0;
 
 // Taken and modified from https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
 function hexToRgb(hex) {
@@ -280,9 +280,11 @@ function CanvasPixel(offset, color) {
     }    
 }
 
+// Maybe add layer name?
 function Layer() {
     this.canvasPixels = [];
     this.opacity = 1.0;
+    this.isEnabled = true;
 
     this.draw = function() {
         gl.uniform1f(transparencyLocation, this.opacity);
@@ -292,14 +294,200 @@ function Layer() {
     }
 }
 
+function selectLayer(index) {
+    const newSwitchButton = document.getElementById("layer" + (index + 1) + "switch");
+    newSwitchButton.innerHTML = "Active Layer";
+    newSwitchButton.disabled = true;
+    document.getElementById("layer" + (index + 1)).classList.add("selected_layer");
+}
+
+function deselectLayer(index) {
+    const oldSwitchButton = document.getElementById("layer" + (index + 1) + "switch");
+    oldSwitchButton.innerHTML = "Switch to Layer";
+    oldSwitchButton.disabled = false;
+    document.getElementById("layer" + (index + 1)).classList.remove("selected_layer");
+}
+
+function switchToLayer(index) {
+    selectLayer(index);
+    deselectLayer(activeLayerIndex);
+    // Change active layer index
+    activeLayerIndex = index;
+}
+
+function clearLayer(index) {
+    Layers[index].canvasPixels.length = 0;
+    renderLayerPreview(index);
+}
+
+function toggleLayer(index) {
+    Layers[index].isEnabled = !Layers[index].isEnabled;
+    if (Layers[index].isEnabled) {
+        document.getElementById("layer" + (index + 1) + "toggle").innerHTML = "Hide Layer";
+    } else {
+        document.getElementById("layer" + (index + 1) + "toggle").innerHTML = "Show Layer";
+    }
+}
+
+function deleteLayer(index) {
+    var indexToRemove = index;
+    Layers.splice(indexToRemove, 1);
+
+    // Delete all layers in layer list
+    // Recreate all layers
+    // Mark first layer as selected
+    document.getElementById("layersDiv").innerHTML = "";
+
+    for (var i = 0; i < Layers.length; i++) {
+        addLayerHTML(i);
+        renderLayerPreview(i);
+    }
+
+    if (Layers.length < 2) {
+        document.getElementById("layer1delete").disabled = true;
+    }
+
+    selectLayer(0);
+
+    activeLayerIndex = 0;
+}
+
+function addLayerHTML(layerIndex) {
+    // Grab layer list div
+    const layersListDiv = document.getElementById("layersDiv");
+
+    // Make new layer div
+    const newLayerDiv = document.createElement("div");
+    const newLayerIndex = layerIndex;
+    // Initialize div properties
+    newLayerDiv.id = "layer" + (newLayerIndex + 1);
+    newLayerDiv.classList.add('layer');
+    newLayerDiv.innerHTML = "Layer " + (newLayerIndex + 1);
+
+    newLayerDiv.appendChild(document.createElement("br"));
+
+    // <div class="row">
+    //     <label for="transparencySlider">Current layer opacity: </label>
+    //     <input name="transparencySlider" type="range" min="0" max="1" value="1" step="0.01" class="slider" id="transparencySlider">
+    // </div>
+    const sliderDiv = document.createElement("div");
+    sliderDiv.className = "row";
+    const sliderLabel = document.createElement("label");
+    sliderLabel.innerHTML = "Opacity: ";
+    sliderLabel.setAttribute("for", "transparencySlider");
+    sliderDiv.appendChild(sliderLabel);
+    const sliderInput = document.createElement("input");
+    sliderInput.setAttribute("name", "transparencySlider");
+    sliderInput.setAttribute("type", "range");
+    sliderInput.setAttribute("min", "0");
+    sliderInput.setAttribute("max", "1");
+    sliderInput.setAttribute("value", "1");
+    sliderInput.setAttribute("step", "0.01");
+    sliderInput.className = "slider";
+    sliderInput.id = "layer" + (layerIndex + 1) + "transparencySlider";
+    sliderInput.value = Layers[layerIndex].opacity;
+    sliderInput.oninput = function() {
+        Layers[layerIndex].opacity = sliderInput.value;
+    }
+    sliderDiv.appendChild(sliderInput);
+
+    newLayerDiv.append(sliderDiv);
+
+    // Layer image preview
+    const imgTag = document.createElement("img");
+    imgTag.id = "canvasPreview_layer" + (newLayerIndex + 1);
+    imgTag.className = "layer_preview";
+    imgTag.width = 200;
+    imgTag.height = 150;
+    newLayerDiv.appendChild(imgTag);
+
+    newLayerDiv.appendChild(document.createElement("br"));
+    
+    // Switch to layer button
+    const switchButton = document.createElement("button");
+    switchButton.id = "layer" + (newLayerIndex + 1) + "switch";
+    switchButton.innerHTML = "Switch to Layer";
+    switchButton.onclick = function () {
+        switchToLayer(layerIndex);
+    }
+    newLayerDiv.appendChild(switchButton);
+
+    // Hide layer button
+    const hideButton = document.createElement("button");
+    hideButton.id = "layer" + (newLayerIndex + 1) + "toggle";
+    hideButton.innerHTML = "Hide Layer";
+    hideButton.onclick = function () {
+        toggleLayer(layerIndex);
+    }
+    newLayerDiv.appendChild(hideButton);
+
+    newLayerDiv.appendChild(document.createElement("br"));
+
+    // Erase layer contents button
+    const clearButton = document.createElement("button");
+    clearButton.id = "layer" + (layerIndex + 1) + "clear";
+    clearButton.innerHTML = "Clear Layer";
+    clearButton.onclick = function() {
+        clearLayer(layerIndex);
+    }
+    newLayerDiv.appendChild(clearButton);
+
+    // Delete layer button
+    const deleteButton = document.createElement("button");
+    deleteButton.id = "layer" + (layerIndex + 1) + "delete";
+    deleteButton.innerHTML = "Delete Layer";
+    deleteButton.onclick = function() {
+        deleteLayer(layerIndex);
+    }
+    newLayerDiv.appendChild(deleteButton);
+
+    // Add layer div to layers list
+    layersListDiv.appendChild(newLayerDiv);
+}
+
+function renderLayerPreview(layerIndex) {
+    var currentGridState = showGrid;
+    // Store states of all layers before disabling all layers and enabling currently edited layer
+    var layerStates = [];
+    layerStates.length = 0;
+    for (var i = 0; i < Layers.length; i++) {
+        layerStates.push(Layers[i].isEnabled);
+        Layers[i].isEnabled = false;
+    }
+    Layers[layerIndex].isEnabled = true;
+    var currentLayerOpacity = Layers[layerIndex].opacity;
+    var currentBGOpacity = backgroundOpacity;
+    backgroundOpacity = 0.0;
+    Layers[layerIndex].opacity = 1.0;
+    showGrid = false;
+    drawScene();
+    showGrid = currentGridState;
+
+    let canvasImage = canvas.toDataURL('image/png');
+    var image = document.getElementById("canvasPreview_layer" + (layerIndex + 1));
+    image.src = canvasImage;
+
+    // Restore layer states and re-render
+    for (var i = 0; i < Layers.length; i++) {
+        Layers[i].isEnabled = layerStates[i];
+    }
+    Layers[layerIndex].opacity = currentLayerOpacity;
+    backgroundOpacity = currentBGOpacity;
+    drawScene();
+}
+
 window.onload = function initialize() {
     GridLines.length = 0;
     Layers.length = 0;
-    canvasPixels.length = 0;
 
     backgroundColor = hexToRgb(document.getElementById("bgcolor").value);
 
     Layers.push(new Layer());
+
+    document.getElementById("layersDiv").innerHTML = "";
+    addLayerHTML(0);
+    selectLayer(0);
+    activeLayerIndex = 0;
 
     canvas = document.getElementById("gl-canvas");
     if (document.getElementById("brushSelect").checked) {
@@ -317,12 +505,7 @@ window.onload = function initialize() {
     document.getElementById("resetbutton").onclick = function() {
         initialize();
     };
-
-    document.getElementById("clearlayerbutton").onclick = function() {
-        Layers[activeLayerIndex].canvasPixels.length = 0;
-    };
     
-
     document.getElementById("gridSizeDropDown").onchange = function () {
         var selectedSize = parseInt(document.getElementById("gridSizeDropDown").value);
         tBlockSize = selectedSize;
@@ -352,57 +535,15 @@ window.onload = function initialize() {
         backgroundColor = hexToRgb(document.getElementById("bgcolor").value);
     });
 
-    document.getElementById("layerDropDown").onchange = function () {
-        var selectedLayer = parseInt(document.getElementById("layerDropDown").value);
-        activeLayerIndex = selectedLayer;
-        document.getElementById("transparencySlider").value = Layers[activeLayerIndex].opacity;
-    };
-
-    document.getElementById("transparencySlider").oninput = function () {
-        Layers[activeLayerIndex].opacity = document.getElementById("transparencySlider").value;
+    document.getElementById("bgOpacitySlider").oninput = function() {
+        backgroundOpacity = document.getElementById("bgOpacitySlider").value;
     }
     
     document.getElementById("newLayerButton").onclick = function () {
         Layers.push(new Layer());
-        document.getElementById("transparencySlider").value = 1.0;
-        activeLayerIndex = Layers.length - 1;
-        var layerSelect = document.getElementById("layerDropDown");
-        var opt = document.createElement('option');
-        opt.value = activeLayerIndex;
-        opt.innerHTML = "Layer " + (activeLayerIndex + 1);
-        opt.selected = "selected";
-        layerSelect.appendChild(opt);
-        document.getElementById("deleteLayerButton").disabled = false;
-    }
-
-    document.getElementById("deleteLayerButton").onclick = function () {
-        // Splice layers list at index of layer drop down
-        // Adjust elements above current layer to reflect positions in list
-        // Alternatively, just delete all elements in layer dropdown and recreate options based on layers list
-        var layerSelect = document.getElementById("layerDropDown");
-        var indexToRemove = parseInt(layerSelect.value);
-        Layers.splice(indexToRemove, 1);
-
-        var i, L = layerSelect.options.length - 1;
-        for(i = L; i >= 0; i--) {
-            layerSelect.remove(i);
-        }
-
-        for (var i = 0; i < Layers.length; i++) {
-            var opt = document.createElement('option');
-            opt.value = i;
-            opt.innerHTML = "Layer " + (i + 1);
-            if (i == 0) {
-                opt.selected = "selected";
-                document.getElementById("transparencySlider").value = Layers[0].opacity;
-            }
-            layerSelect.appendChild(opt);
-        }
-
-        if (Layers.length < 2) {
-            document.getElementById("deleteLayerButton").disabled = true;
-        }
-        activeLayerIndex = 0;
+        addLayerHTML(Layers.length - 1);
+        switchToLayer(Layers.length - 1);
+        document.getElementById("layer1delete").disabled = false;
     }
 
     // Taken and modified from here https://stackoverflow.com/questions/8126623/downloading-canvas-element-to-an-image/56185896#56185896
@@ -451,14 +592,42 @@ window.onload = function initialize() {
             var calculatedY = Math.floor(y / tBlockSize) * tBlockSize;
             var newPiece = new CanvasPixel(add(vec2(calculatedX, calculatedY), vec2(0, 0)), selectedColorVec);
             newPiece.init();
-            console.log("Creating new pixel on layer " + activeLayerIndex);
             Layers[activeLayerIndex].canvasPixels.push(newPiece);
         }
     });
 
-    // Drop block. Here we should check if the block should be deleted
     canvas.addEventListener("mouseup", function(event){
         isMouseDown = false;
+        // Update layer preview
+        renderLayerPreview(activeLayerIndex);
+        // var currentGridState = showGrid;
+        // // Store states of all layers before disabling all layers and enabling currently edited layer
+        // var layerStates = [];
+        // layerStates.length = 0;
+        // for (var i = 0; i < Layers.length; i++) {
+        //     layerStates.push(Layers[i].isEnabled);
+        //     Layers[i].isEnabled = false;
+        // }
+        // Layers[activeLayerIndex].isEnabled = true;
+        // var currentLayerOpacity = Layers[activeLayerIndex].opacity;
+        // var currentBGOpacity = backgroundOpacity;
+        // backgroundOpacity = 0.0;
+        // Layers[activeLayerIndex].opacity = 1.0;
+        // showGrid = false;
+        // drawScene();
+        // showGrid = currentGridState;
+
+        // let canvasImage = canvas.toDataURL('image/png');
+        // var image = document.getElementById("canvasPreview_layer" + (activeLayerIndex + 1));
+        // image.src = canvasImage;
+
+        // // Restore layer states and re-render
+        // for (var i = 0; i < Layers.length; i++) {
+        //     Layers[i].isEnabled = layerStates[i];
+        // }
+        // Layers[activeLayerIndex].opacity = currentLayerOpacity;
+        // backgroundOpacity = currentBGOpacity;
+        // drawScene();
     });
 
     // Keep drawing while mouse is down
@@ -482,7 +651,6 @@ window.onload = function initialize() {
                 // console.log("Creating new piece!");
                 var newPiece = new CanvasPixel(add(vec2(calculatedX, calculatedY), vec2(0, 0)), selectedColorVec);
                 newPiece.init();
-                console.log("Creating new pixel on layer " + activeLayerIndex);
                 Layers[activeLayerIndex].canvasPixels.push(newPiece);
             } else {
                 for (var i = Layers[activeLayerIndex].canvasPixels.length - 1; i >= 0; i--) {
@@ -496,7 +664,7 @@ window.onload = function initialize() {
     });
 
     gl.viewport( 0, 0, canvas.width, canvas.height );
-    gl.clearColor( backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0 );
+    gl.clearColor( backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundOpacity );
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -547,12 +715,14 @@ function deletePiece(index) {
 
 function drawScene() {
     // console.log("Number of pixels: " + canvasPixels.length);
-    gl.clearColor( backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0 );
+    gl.clearColor( backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundOpacity );
     gl.clear(gl.COLOR_BUFFER_BIT);
     
 
     for (var i = 0; i < Layers.length; i++) {
-        Layers[i].draw();
+        if (Layers[i].isEnabled) {
+            Layers[i].draw();
+        }
     }
 
     // for (var i = 0; i < canvasPixels.length; i++) {

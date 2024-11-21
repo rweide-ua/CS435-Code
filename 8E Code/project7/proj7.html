@@ -45,6 +45,7 @@
         <script type="text/javascript" src="../Common/initShaders.js"></script>
         <script type="text/javascript" src="../Common/MVnew.js"></script>
         <script type="text/javascript" src="proj7.js"></script>
+        <link rel="stylesheet" href="proj7.css">
     </head>
 
 
@@ -60,6 +61,8 @@
             <label for="bgcolor">Background color:</label>
             <input type="color" id="bgcolor" name="bgcolor" value="#808080">
 
+            <label for="bgOpacitySlider">Background opacity: </label>
+            <input name="bgOpacitySlider" type="range" min="0" max="1" value="1" step="0.01" class="slider" id="bgOpacitySlider">
             <br />
 
             <label for="gridSizeDropDown">Grid size:</label>
@@ -82,30 +85,45 @@
                 <label for="eraserSelect">Eraser</label><br>
             </div>
 
-            <br />
+        </div>
+        
+        <br/>
 
-            <div class="slidecontainer">
-                <label for="layerDropDown">Selected layer: </label>
-                <select id="layerDropDown" name="layerDropDown">
-                    <option value="0" selected>Layer 1</option>
-                </select>
-                <label for="transparencySlider">Opacity: </label>
-                <input name="transparencySlider" type="range" min="0" max="1" value="1" step="0.01" class="slider" id="transparencySlider">
-                <button id = "newLayerButton">New Layer</button>
-                <button id = "deleteLayerButton" disabled>Delete Selected Layer</button>
+        <div class="row">
+            <canvas id="gl-canvas" width="800" height="600">
+                Oops ... your browser doesn't support the HTML5 canvas element
+            </canvas>
+            <div class="layers column" id="layersAndControlsDiv">
+                <div id="layerControls">
+                    <!-- <div class="row">
+                        <label for="transparencySlider">Current layer opacity: </label>
+                        <input name="transparencySlider" type="range" min="0" max="1" value="1" step="0.01" class="slider" id="transparencySlider">
+                    </div> -->
+                    <div class="row fill-horizontal">
+                        <button id="newLayerButton">Add layer</button>
+                    </div>
+                </div>
+                <div class="column" id="layersDiv">
+                    <!-- <div class="layer selected_layer" id="layer1">
+                        Layer 1
+                        <br/>
+                        <img id = "canvasPreview_layer1" class = "layer_preview" width="200" height="150">
+                        <br/>
+                        <button id="layer1switch" disabled>Active Layer</button>
+                        <button id="layer1toggle">Hide Layer</button>
+                        <br/>
+                        <button id="layer1clear">Clear Layer</button>
+                        <button id="layer1delete" disabled>Delete Layer</button>
+                    </div> -->
+                </div>
             </div>
         </div>
 
-        <div>
-            <canvas id="gl-canvas" width="800" height="600">
-            Oops ... your browser doesn't support the HTML5 canvas element
-            </canvas>
-        </div>
+        <br/>
 
         <div>
             <button id = "saveButton">Save Image</button>
-            <button id = "clearlayerbutton">Clear Selected Layer</button>
-            <button id = "resetbutton">Clear Canvas</button>
+            <button id = "resetbutton">Reset Canvas</button>
         </div>
     </body>
 </html>
