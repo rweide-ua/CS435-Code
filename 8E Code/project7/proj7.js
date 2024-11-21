@@ -20,6 +20,7 @@ var vPosition; // loc of attribute variables
 var vColor;
 
 var canvasPixels = [];
+var Layers = [];
 
 var tBlockSize = 25;
 
@@ -31,6 +32,11 @@ var currentTool; // Options are "brush" and "eraser"
 var selectedColorVec;
 var isMouseDown = false;
 var showGrid = true;
+var transparencyLocation;
+
+var activeLayerIndex = 0;
+
+var backgroundColor;
 
 // Taken and modified from https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
 function hexToRgb(hex) {
@@ -112,6 +118,8 @@ function GridLine(pos, color, isVertical) {
     }
 
     this.draw = function() {
+        gl.uniform1f(transparencyLocation, 1.0);
+
         var tm=translate(this.origin[0]+this.OffsetX, this.origin[1]+this.OffsetY, 0.0);
         tm=mult(tm, rotate(this.Angle, vec3(0, 0, 1)));
         tm=mult(tm, translate(-this.origin[0], -this.origin[1], 0.0));
@@ -269,14 +277,30 @@ function CanvasPixel(offset, color) {
         gl.enableVertexAttribArray( vColor );
         
         gl.drawArrays( gl.TRIANGLES, 0, this.points.length );
-        
     }    
+}
 
+function Layer() {
+    this.canvasPixels = [];
+    this.opacity = 1.0;
+
+    this.draw = function() {
+        gl.uniform1f(transparencyLocation, this.opacity);
+        for (var i = 0; i < this.canvasPixels.length; i++) {
+            this.canvasPixels[i].draw();
+        }
+    }
 }
 
 window.onload = function initialize() {
     GridLines.length = 0;
+    Layers.length = 0;
     canvasPixels.length = 0;
+
+    backgroundColor = hexToRgb(document.getElementById("bgcolor").value);
+
+    Layers.push(new Layer());
+
     canvas = document.getElementById("gl-canvas");
     if (document.getElementById("brushSelect").checked) {
         currentTool = "brush";
@@ -293,6 +317,11 @@ window.onload = function initialize() {
     document.getElementById("resetbutton").onclick = function() {
         initialize();
     };
+
+    document.getElementById("clearlayerbutton").onclick = function() {
+        Layers[activeLayerIndex].canvasPixels.length = 0;
+    };
+    
 
     document.getElementById("gridSizeDropDown").onchange = function () {
         var selectedSize = parseInt(document.getElementById("gridSizeDropDown").value);
@@ -317,6 +346,64 @@ window.onload = function initialize() {
         selectedColor = hexToRgb(document.getElementById("brushcolor").value);
         selectedColorVec = vec4(selectedColor.r, selectedColor.g, selectedColor.b, 1.0);
     });
+
+    document.getElementById("bgcolor").addEventListener('input', function() {  // I tried also onchange
+        // console.log(document.getElementById("brushcolor").value);
+        backgroundColor = hexToRgb(document.getElementById("bgcolor").value);
+    });
+
+    document.getElementById("layerDropDown").onchange = function () {
+        var selectedLayer = parseInt(document.getElementById("layerDropDown").value);
+        activeLayerIndex = selectedLayer;
+        document.getElementById("transparencySlider").value = Layers[activeLayerIndex].opacity;
+    };
+
+    document.getElementById("transparencySlider").oninput = function () {
+        Layers[activeLayerIndex].opacity = document.getElementById("transparencySlider").value;
+    }
+    
+    document.getElementById("newLayerButton").onclick = function () {
+        Layers.push(new Layer());
+        document.getElementById("transparencySlider").value = 1.0;
+        activeLayerIndex = Layers.length - 1;
+        var layerSelect = document.getElementById("layerDropDown");
+        var opt = document.createElement('option');
+        opt.value = activeLayerIndex;
+        opt.innerHTML = "Layer " + (activeLayerIndex + 1);
+        opt.selected = "selected";
+        layerSelect.appendChild(opt);
+        document.getElementById("deleteLayerButton").disabled = false;
+    }
+
+    document.getElementById("deleteLayerButton").onclick = function () {
+        // Splice layers list at index of layer drop down
+        // Adjust elements above current layer to reflect positions in list
+        // Alternatively, just delete all elements in layer dropdown and recreate options based on layers list
+        var layerSelect = document.getElementById("layerDropDown");
+        var indexToRemove = parseInt(layerSelect.value);
+        Layers.splice(indexToRemove, 1);
+
+        var i, L = layerSelect.options.length - 1;
+        for(i = L; i >= 0; i--) {
+            layerSelect.remove(i);
+        }
+
+        for (var i = 0; i < Layers.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = i;
+            opt.innerHTML = "Layer " + (i + 1);
+            if (i == 0) {
+                opt.selected = "selected";
+                document.getElementById("transparencySlider").value = Layers[0].opacity;
+            }
+            layerSelect.appendChild(opt);
+        }
+
+        if (Layers.length < 2) {
+            document.getElementById("deleteLayerButton").disabled = true;
+        }
+        activeLayerIndex = 0;
+    }
 
     // Taken and modified from here https://stackoverflow.com/questions/8126623/downloading-canvas-element-to-an-image/56185896#56185896
     document.getElementById("saveButton").onclick = function() {
@@ -353,10 +440,10 @@ window.onload = function initialize() {
         if (currentTool == "brush") {
             //console.log("Making new piece in click!");
             // Place down pixel at current position if one doesn't exist
-            for (var i = canvasPixels.length - 1; i >= 0; i--) {
-                if (canvasPixels[i].isInside(x, y)) {
+            for (var i = Layers[activeLayerIndex].canvasPixels.length - 1; i >= 0; i--) {
+                if (Layers[activeLayerIndex].canvasPixels[i].isInside(x, y)) {
                     //console.log("Found pixel! Changing color...");
-                    canvasPixels[i].changeColor(selectedColorVec);
+                    Layers[activeLayerIndex].canvasPixels[i].changeColor(selectedColorVec);
                     return;
                 }
             }
@@ -364,7 +451,8 @@ window.onload = function initialize() {
             var calculatedY = Math.floor(y / tBlockSize) * tBlockSize;
             var newPiece = new CanvasPixel(add(vec2(calculatedX, calculatedY), vec2(0, 0)), selectedColorVec);
             newPiece.init();
-            canvasPixels.push(newPiece);
+            console.log("Creating new pixel on layer " + activeLayerIndex);
+            Layers[activeLayerIndex].canvasPixels.push(newPiece);
         }
     });
 
@@ -385,19 +473,20 @@ window.onload = function initialize() {
             // Place down pixel at current position if one doesn't exist
             // console.log(calculatedX, calculatedY);
             if (currentTool == "brush") {
-                for (var i = canvasPixels.length - 1; i >= 0; i--) {
-                    if (canvasPixels[i].isInside(calculatedX + (0.5 * tBlockSize), calculatedY+ (0.5 * tBlockSize))) {
-                        canvasPixels[i].changeColor(selectedColorVec);
+                for (var i = Layers[activeLayerIndex].canvasPixels.length - 1; i >= 0; i--) {
+                    if (Layers[activeLayerIndex].canvasPixels[i].isInside(calculatedX + (0.5 * tBlockSize), calculatedY+ (0.5 * tBlockSize))) {
+                        Layers[activeLayerIndex].canvasPixels[i].changeColor(selectedColorVec);
                         return;
                     }
                 }
                 // console.log("Creating new piece!");
                 var newPiece = new CanvasPixel(add(vec2(calculatedX, calculatedY), vec2(0, 0)), selectedColorVec);
                 newPiece.init();
-                canvasPixels.push(newPiece);
+                console.log("Creating new pixel on layer " + activeLayerIndex);
+                Layers[activeLayerIndex].canvasPixels.push(newPiece);
             } else {
-                for (var i = canvasPixels.length - 1; i >= 0; i--) {
-                    if (canvasPixels[i].isInside(calculatedX + (0.5 * tBlockSize), calculatedY+ (0.5 * tBlockSize))) {
+                for (var i = Layers[activeLayerIndex].canvasPixels.length - 1; i >= 0; i--) {
+                    if (Layers[activeLayerIndex].canvasPixels[i].isInside(calculatedX + (0.5 * tBlockSize), calculatedY+ (0.5 * tBlockSize))) {
                         deletePiece(i);
                         return;
                     }
@@ -407,7 +496,10 @@ window.onload = function initialize() {
     });
 
     gl.viewport( 0, 0, canvas.width, canvas.height );
-    gl.clearColor( 0.5, 0.5, 0.5, 1.0 );
+    gl.clearColor( backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0 );
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     //
     //  Load shaders and initialize attribute buffers
@@ -441,22 +533,31 @@ window.onload = function initialize() {
 
     vPosition = gl.getAttribLocation( program, "aPosition" );
     vColor = gl.getAttribLocation( program, "aColor" );
+    transparencyLocation = gl.getUniformLocation(program, "transparency");
+
+    gl.uniform1f(transparencyLocation, 1.0);
 
     render();
 }
 
 // Deletes piece at given index from board
 function deletePiece(index) {
-    canvasPixels.splice(index, 1);
+    Layers[activeLayerIndex].canvasPixels.splice(index, 1);
 }
 
 function drawScene() {
     // console.log("Number of pixels: " + canvasPixels.length);
+    gl.clearColor( backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0 );
     gl.clear(gl.COLOR_BUFFER_BIT);
+    
 
-    for (var i = 0; i < canvasPixels.length; i++) {
-        canvasPixels[i].draw();
+    for (var i = 0; i < Layers.length; i++) {
+        Layers[i].draw();
     }
+
+    // for (var i = 0; i < canvasPixels.length; i++) {
+    //     canvasPixels[i].draw();
+    // }
 
     if (showGrid) {
         for (var i = 0; i < GridLines.length; i++) {

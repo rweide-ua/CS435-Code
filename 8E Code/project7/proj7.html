@@ -8,8 +8,11 @@
         <script id="vertex-shader" type="x-shader/x-vertex">
         #version 300 es
 
+        precision mediump float;
+
         in vec4 aPosition;
         in vec4 aColor;
+        uniform float transparency;
 
         out vec4 vColor;
 
@@ -20,6 +23,7 @@
         {
             gl_Position = projection*transformation*aPosition;
             vColor=aColor;
+            vColor.a = transparency;
         }
         </script>
 
@@ -53,6 +57,11 @@
             <label for="brushcolor">Brush color:</label>
             <input type="color" id="brushcolor" name="brushcolor" value="#FFFFFF">
 
+            <label for="bgcolor">Background color:</label>
+            <input type="color" id="bgcolor" name="bgcolor" value="#808080">
+
+            <br />
+
             <label for="gridSizeDropDown">Grid size:</label>
             <select id="gridSizeDropDown" name="gridSizeDropDown">
                 <option value="10">Small</option>
@@ -64,12 +73,26 @@
             <label for="gridlines">Show gridlines</label>
 
             <br />
+            <br />
             Tool:
             <div>
                 <input type="radio" id="brushSelect" name="tool" value="brush" checked="checked">
                 <label for="brushSelect">Brush</label><br>
                 <input type="radio" id="eraserSelect" name="tool" value="eraser">
                 <label for="eraserSelect">Eraser</label><br>
+            </div>
+
+            <br />
+
+            <div class="slidecontainer">
+                <label for="layerDropDown">Selected layer: </label>
+                <select id="layerDropDown" name="layerDropDown">
+                    <option value="0" selected>Layer 1</option>
+                </select>
+                <label for="transparencySlider">Opacity: </label>
+                <input name="transparencySlider" type="range" min="0" max="1" value="1" step="0.01" class="slider" id="transparencySlider">
+                <button id = "newLayerButton">New Layer</button>
+                <button id = "deleteLayerButton" disabled>Delete Selected Layer</button>
             </div>
         </div>
 
@@ -81,6 +104,7 @@
 
         <div>
             <button id = "saveButton">Save Image</button>
+            <button id = "clearlayerbutton">Clear Selected Layer</button>
             <button id = "resetbutton">Clear Canvas</button>
         </div>
     </body>
